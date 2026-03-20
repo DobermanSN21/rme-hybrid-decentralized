@@ -1,0 +1,28 @@
+{
+  "name": "rme-hybrid-decentralized",
+  "version": "1.0.0",
+  "description": "Sistem Rekam Medis Elektronik Hybrid-Terdesentralisasi - Skripsi Prototype",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:local": "hardhat run scripts/deploy.js",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
+    "node": "hardhat node"
+  },
+  "keywords": [
+    "ethereum",
+    "medical-records",
+    "ipfs",
+    "solidity"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.0"
+  },
+  "dependencies": {
+    "@noble/hashes": "^1.4.0",
+    "@noble/secp256k1": "^2.1.0",
+    "dotenv": "^17.3.1"
+  }
+}
