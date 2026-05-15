@@ -119,7 +119,7 @@ export default function AccessManager() {
             setCids(cidList);
             // Deduplicate — contract bug: revoking then re-granting pushes duplicate entries
             setDoctors([...new Set(doctorList)]);
-            if (cidList.length > 0) setSelectedCids(new Set(cidList));
+            setSelectedCids(new Set()); // no pre-selection — patient must consciously choose
             // Collect unique doctor addresses from all records
             const allDoctors = [...new Set([
                 ...approvedRecs.map(r => r.doctorAddress),
