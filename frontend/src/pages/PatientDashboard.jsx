@@ -16,12 +16,15 @@ import {
     approveRecord,
     rejectRecord,
     getEncryptedKey,
+    grantAccess,
     getPublicKey as getBlockchainPublicKey,
 } from "../services/blockchain";
 import {
     decryptFile,
     decryptWithPrivateKey,
     deserializeEncrypted,
+    encryptWithPublicKey,
+    serializeEncrypted,
     sha256Hex,
 } from "../services/crypto";
 import { downloadFromPinata } from "../services/pinata";
@@ -155,18 +158,35 @@ export default function PatientDashboard() {
     }, [account, loadRecords]);
 
     // Approve record with confirmation
-    const handleApprove = (recordIndex, fileName) => {
+    const handleApprove = (rec) => {
         setConfirmDialog({
             title: "Approve Medical Record",
-            message: `Are you sure you want to approve the medical record "${fileName || "Unknown"}"? This action will store it permanently on the blockchain.`,
+            message: `Are you sure you want to approve the medical record "${rec.fileName || "Unknown"}"? This action will store it permanently on the blockchain.`,
             confirmLabel: "Approve",
             variant: "primary",
             onConfirm: async () => {
                 setConfirmDialog(null);
-                setActionLoading(recordIndex);
+                setActionLoading(rec.recordIndex);
                 setError(null);
                 try {
-                    await approveRecord(account.signer, recordIndex);
+                    // 1. Approve on blockchain
+                    await approveRecord(account.signer, rec.recordIndex);
+
+                    // 2. Re-encrypt AES key for the doctor (so doctor can decrypt)
+                    if (privateKey) {
+                        try {
+                            const encKeyStr = await getEncryptedKey(account.signer, rec.cid);
+                            const encKey = deserializeEncrypted(encKeyStr);
+                            const aesKeyHex = await decryptWithPrivateKey(privateKey, encKey);
+                            const doctorPubKey = await getBlockchainPublicKey(account.signer, rec.doctorAddress);
+                            const encForDoctor = await encryptWithPublicKey(doctorPubKey, aesKeyHex);
+                            const serializedForDoctor = serializeEncrypted(encForDoctor);
+                            await grantAccess(account.signer, rec.doctorAddress, rec.cid, serializedForDoctor);
+                        } catch (grantErr) {
+                            console.warn("[RME] Grant access to doctor failed:", grantErr.message);
+                        }
+                    }
+
                     await loadRecords();
                 } catch (err) {
                     setError("Approve failed: " + (err.reason || err.message || err));
@@ -420,7 +440,7 @@ export default function PatientDashboard() {
                                 {/* Actions */}
                                 <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", flexWrap: "wrap" }}>
                                     <button
-                                        onClick={() => handleApprove(rec.recordIndex, rec.fileName)}
+                                        onClick={() => handleApprove(rec)}
                                         disabled={actionLoading === rec.recordIndex}
                                         className="btn btn-primary"
                                         style={{ fontSize: "0.8rem", padding: "8px 20px" }}
