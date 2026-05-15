@@ -365,7 +365,7 @@ export default function DoctorDashboard() {
 
                         {/* Upload Progress Steps */}
                         {uploadStep && (
-                            <div style={{ padding:"16px",borderRadius:"12px",background:"#f8fafc",border:"1px solid #e2e8f0",marginBottom:"16px" }}>
+                            <div style={{ padding:"16px",borderRadius:"12px",background:"#f8fafc",border:"1px solid #e2e8f0",marginBottom:"24px" }}>
                                 {UPLOAD_STEPS.map((step, i) => (
                                     <div key={step.key} style={{ display:"flex",alignItems:"center",gap:"10px",padding:"6px 0" }}>
                                         <span style={{ width:"20px",height:"20px",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
@@ -400,7 +400,7 @@ export default function DoctorDashboard() {
                             onClick={handleUpload}
                             disabled={uploadLoading || !selectedFile || !patientAddress}
                             className="btn btn-accent"
-                            style={{ width:"100%",justifyContent:"center",padding:"13px 22px",fontSize:"0.88rem",marginTop:"8px" }}
+                            style={{ width:"100%",justifyContent:"center",padding:"13px 22px",fontSize:"0.88rem" }}
                         >
                             {uploadLoading
                                 ? <><svg className="animate-spin" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Processing...</>
