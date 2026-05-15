@@ -18,9 +18,27 @@ export default function RegisterForm() {
     const [loginKey, setLoginKey] = useState("");
     const [loginError, setLoginError] = useState("");
     const [copied, setCopied] = useState(false);
+    const [downloaded, setDownloaded] = useState(false);
 
     const handleGoToDashboard = () => {
         setRole(selectedRole === "patient" ? ROLES.PATIENT : ROLES.DOCTOR);
+    };
+
+    const handleDownloadKey = (privateKey) => {
+        const content = `RME Vault — ECC Private Key\n` +
+            `Role: ${selectedRole}\n` +
+            `Date: ${new Date().toISOString()}\n\n` +
+            `PRIVATE KEY (keep this secret!):\n${privateKey}\n\n` +
+            `WARNING: Anyone with this key can decrypt your medical records.\n` +
+            `Store this file in a safe, private location.`;
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `rme-vault-private-key-${Date.now()}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setDownloaded(true);
     };
 
     const handleRegister = async () => {
@@ -169,39 +187,46 @@ export default function RegisterForm() {
                                 {generatedKeys.privateKey}
                             </p>
                         </div>
-                        <button
-                            onClick={() => {
-                                navigator.clipboard.writeText(generatedKeys.privateKey);
-                                setCopied(true);
-                                setTimeout(() => setCopied(false), 2500);
-                            }}
-                            className="btn btn-ghost"
-                            style={{
-                                width: "100%",
-                                justifyContent: "center",
-                                marginTop: "12px",
-                                fontSize: "0.8rem",
-                                padding: "10px",
-                                background: copied ? "#f0fdf4" : undefined,
-                                borderColor: copied ? "#bbf7d0" : undefined,
-                                color: copied ? "#16a34a" : undefined,
-                            }}
-                        >
-                            {copied ? (
-                                <>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                                    Copied!
-                                </>
-                            ) : (
-                                <>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-                                        <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-                                    </svg>
-                                    Copy to Clipboard
-                                </>
-                            )}
-                        </button>
+                        <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+                            <button
+                                onClick={() => {
+                                    navigator.clipboard.writeText(generatedKeys.privateKey);
+                                    setCopied(true);
+                                    setTimeout(() => setCopied(false), 2500);
+                                }}
+                                className="btn btn-ghost"
+                                style={{
+                                    flex: 1, justifyContent: "center",
+                                    fontSize: "0.78rem", padding: "10px",
+                                    background: copied ? "#f0fdf4" : undefined,
+                                    borderColor: copied ? "#bbf7d0" : undefined,
+                                    color: copied ? "#16a34a" : undefined,
+                                }}
+                            >
+                                {copied ? (
+                                    <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Copied!</>
+                                ) : (
+                                    <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg> Copy</>
+                                )}
+                            </button>
+                            <button
+                                onClick={() => handleDownloadKey(generatedKeys.privateKey)}
+                                className="btn btn-ghost"
+                                style={{
+                                    flex: 1, justifyContent: "center",
+                                    fontSize: "0.78rem", padding: "10px",
+                                    background: downloaded ? "#f0fdf4" : undefined,
+                                    borderColor: downloaded ? "#bbf7d0" : undefined,
+                                    color: downloaded ? "#16a34a" : undefined,
+                                }}
+                            >
+                                {downloaded ? (
+                                    <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Downloaded!</>
+                                ) : (
+                                    <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg> Download .txt</>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 )}
 
@@ -212,15 +237,15 @@ export default function RegisterForm() {
                     </p>
                     <button
                         onClick={handleGoToDashboard}
-                        disabled={!copied}
+                        disabled={!copied && !downloaded}
                         className="btn btn-primary"
-                        style={{ width: "100%", justifyContent: "center", padding: "12px", fontSize: "0.88rem", opacity: copied ? 1 : 0.5, cursor: copied ? "pointer" : "not-allowed" }}
+                        style={{ width: "100%", justifyContent: "center", padding: "12px", fontSize: "0.88rem", opacity: (copied || downloaded) ? 1 : 0.5, cursor: (copied || downloaded) ? "pointer" : "not-allowed" }}
                     >
-                        {copied ? "✓ I've saved my key — Go to Dashboard" : "Copy your key first to continue"}
+                        {(copied || downloaded) ? "✓ I've saved my key — Go to Dashboard" : "Save your key first to continue"}
                     </button>
-                    {!copied && (
+                    {!copied && !downloaded && (
                         <p style={{ fontSize: "0.72rem", color: "#f59e0b", textAlign: "center", marginTop: "8px" }}>
-                            ⚠ Click "Copy to Clipboard" above before you can proceed
+                            ⚠ Copy or download your private key above before proceeding. This key cannot be recovered if lost.
                         </p>
                     )}
                 </div>

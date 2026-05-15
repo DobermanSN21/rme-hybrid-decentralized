@@ -3,7 +3,7 @@
 // Doctor Dashboard — Upload records for patients + view records
 // ============================================================
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { isAddress } from "ethers";
 import { useWallet } from "../context/WalletContext";
 import Layout from "../components/Layout";
@@ -13,6 +13,7 @@ import {
     getPatientRecords,
     getPublicKey as getBlockchainPublicKey,
     getEncryptedKey,
+    getSubmittedByDoctor,
 } from "../services/blockchain";
 import {
     generateAESKey,
@@ -60,8 +61,43 @@ export default function DoctorDashboard() {
     const [decryptedMap, setDecryptedMap] = useState({});
     const [searchLoading, setSearchLoading] = useState(false);
 
+    // Submissions tab
+    const [submissions, setSubmissions] = useState([]);
+    const [submissionsLoading, setSubmissionsLoading] = useState(false);
+    const [notification, setNotification] = useState(null);
+    const prevApprovedRef = useRef(new Set());
+
     // Private key import
     const [keyInput, setKeyInput] = useState("");
+
+    // Load submitted records + detect newly approved (for notification)
+    const loadSubmissions = async () => {
+        if (!account) return;
+        try {
+            const data = await getSubmittedByDoctor(account.signer);
+            data.sort((a, b) => b.timestamp - a.timestamp);
+
+            // Detect newly approved since last poll
+            const newlyApproved = data.filter(r =>
+                r.status === 'APPROVED' && !prevApprovedRef.current.has(r.cid)
+            );
+            if (newlyApproved.length > 0 && prevApprovedRef.current.size > 0) {
+                setNotification(`${newlyApproved.length} record(s) approved by patient!`);
+                setTimeout(() => setNotification(null), 5000);
+            }
+            prevApprovedRef.current = new Set(data.filter(r => r.status === 'APPROVED').map(r => r.cid));
+            setSubmissions(data);
+        } catch (err) {
+            console.warn("[RME] loadSubmissions error:", err.message);
+        }
+    };
+
+    useEffect(() => {
+        if (!account) return;
+        loadSubmissions();
+        const interval = setInterval(loadSubmissions, 30_000);
+        return () => clearInterval(interval);
+    }, [account]);
 
     // Handle file selection
     const handleFileSelect = (e) => {
@@ -240,19 +276,31 @@ export default function DoctorDashboard() {
         ? UPLOAD_STEPS.findIndex((s) => s.key === uploadStep)
         : -1;
 
+    const pendingCount = submissions.filter(r => r.status === 'PENDING').length;
+
     const tabs = [
         { id: "upload", label: "Upload Medical Record", icon: "upload" },
+        { id: "submissions", label: "My Submissions", icon: "list", count: pendingCount },
         { id: "view", label: "View Medical Records", icon: "search" },
     ];
 
-    const TabIcon = ({ type, size = 16 }) => type === "upload" ? (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-    ) : (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-    );
+    const TabIcon = ({ type, size = 16 }) => {
+        if (type === "upload") return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>;
+        if (type === "list") return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>;
+        return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>;
+    };
 
     return (
         <Layout>
+            {/* Notification Toast */}
+            {notification && (
+                <div style={{ position:"fixed",top:"24px",right:"24px",zIndex:9999,display:"flex",alignItems:"center",gap:"10px",padding:"14px 20px",borderRadius:"12px",background:"#16a34a",color:"white",boxShadow:"0 8px 24px rgba(22,163,74,0.35)",fontSize:"0.85rem",fontWeight:600,maxWidth:"340px",animation:"fadeInDown 0.3s ease" }} className="animate-fade-in">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    {notification}
+                    <button onClick={() => setNotification(null)} style={{ marginLeft:"auto",background:"none",border:"none",color:"white",cursor:"pointer",opacity:0.7,padding:"0 2px",fontSize:"1rem",lineHeight:1 }}>✕</button>
+                </div>
+            )}
+
             {/* Private Key Status */}
             {!privateKey ? (
                 <div style={{ display:"flex",alignItems:"center",gap:"8px",padding:"12px 16px",borderRadius:"10px",background:"#fffbeb",border:"1px solid #fde68a",marginBottom:"24px",flexWrap:"wrap" }} className="animate-fade-in">
@@ -276,6 +324,9 @@ export default function DoctorDashboard() {
                 {tabs.map((tab) => (
                     <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ display:"flex",alignItems:"center",gap:"7px",padding:"10px 18px",borderRadius:"9px",fontSize:"0.82rem",fontWeight:600,border:"none",cursor:"pointer",transition:"all 0.2s ease",flex:"1 1 0",justifyContent:"center",background:activeTab===tab.id?"white":"transparent",color:activeTab===tab.id?"#0f172a":"#64748b",boxShadow:activeTab===tab.id?"0 1px 3px rgba(0,0,0,0.08)":"none" }}>
                         <TabIcon type={tab.icon} size={16}/><span>{tab.label}</span>
+                        {tab.count > 0 && (
+                            <span style={{ minWidth:"18px",height:"18px",padding:"0 5px",borderRadius:"9px",background:"#ef4444",color:"white",fontSize:"0.65rem",fontWeight:700,display:"inline-flex",alignItems:"center",justifyContent:"center",lineHeight:1 }}>{tab.count}</span>
+                        )}
                     </button>
                 ))}
             </div>
@@ -428,6 +479,90 @@ export default function DoctorDashboard() {
                             )}
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* My Submissions Tab */}
+            {activeTab === "submissions" && (
+                <div style={{ maxWidth:"800px",margin:"0 auto" }}>
+                    <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"20px",flexWrap:"wrap",gap:"10px" }}>
+                        <h2 className="section-title" style={{ marginBottom:0 }}>My Submitted Records</h2>
+                        <div style={{ display:"flex",gap:"8px" }}>
+                            {[
+                                { label:"Pending", count: submissions.filter(r=>r.status==='PENDING').length, color:"#d97706", bg:"#fffbeb", border:"#fde68a" },
+                                { label:"Approved", count: submissions.filter(r=>r.status==='APPROVED').length, color:"#16a34a", bg:"#f0fdf4", border:"#bbf7d0" },
+                                { label:"Rejected", count: submissions.filter(r=>r.status==='REJECTED').length, color:"#dc2626", bg:"#fff5f5", border:"#fecaca" },
+                            ].map(s => (
+                                <span key={s.label} style={{ fontSize:"0.72rem",fontWeight:700,padding:"4px 12px",borderRadius:"20px",background:s.bg,color:s.color,border:`1px solid ${s.border}` }}>
+                                    {s.label}: {s.count}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+
+                    {submissionsLoading && submissions.length === 0 ? (
+                        <div className="glass-card" style={{ textAlign:"center",padding:"48px 24px" }}>
+                            <svg className="animate-spin" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2E7DDB" strokeWidth="2.5" strokeLinecap="round" style={{ margin:"0 auto 12px",display:"block" }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                            <p style={{ fontSize:"0.85rem",color:"#64748b" }}>Loading submissions...</p>
+                        </div>
+                    ) : submissions.length === 0 ? (
+                        <div className="glass-card" style={{ textAlign:"center",padding:"48px 24px" }}>
+                            <div style={{ margin:"0 auto 16px",opacity:0.35 }}>
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>
+                            </div>
+                            <p style={{ fontSize:"0.88rem",color:"#64748b",fontWeight:500 }}>No submissions yet</p>
+                            <p style={{ fontSize:"0.75rem",color:"#94a3b8",marginTop:"4px" }}>Records you upload for patients will appear here.</p>
+                        </div>
+                    ) : (
+                        <div style={{ display:"flex",flexDirection:"column",gap:"12px" }}>
+                            {submissions.map((rec, i) => {
+                                const statusConfig = {
+                                    PENDING:  { label:"PENDING",  color:"#d97706", bg:"#fffbeb", border:"#fde68a" },
+                                    APPROVED: { label:"APPROVED", color:"#16a34a", bg:"#f0fdf4", border:"#bbf7d0" },
+                                    REJECTED: { label:"REJECTED", color:"#dc2626", bg:"#fff5f5", border:"#fecaca" },
+                                }[rec.status] || { label:rec.status, color:"#64748b", bg:"#f8fafc", border:"#e2e8f0" };
+
+                                return (
+                                    <div key={i} className="glass-card" style={{ padding:"18px 20px",borderLeft:`3px solid ${statusConfig.border}` }}>
+                                        <div style={{ display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:"12px",flexWrap:"wrap" }}>
+                                            <div style={{ flex:1,minWidth:0 }}>
+                                                <div style={{ display:"flex",alignItems:"center",gap:"8px",marginBottom:"8px",flexWrap:"wrap" }}>
+                                                    <span style={{ fontSize:"0.72rem",fontWeight:700,padding:"3px 10px",borderRadius:"20px",background:statusConfig.bg,color:statusConfig.color,border:`1px solid ${statusConfig.border}`,flexShrink:0 }}>
+                                                        {statusConfig.label}
+                                                    </span>
+                                                    <span style={{ fontSize:"0.72rem",color:"#94a3b8",flexShrink:0 }}>
+                                                        {new Date(rec.timestamp * 1000).toLocaleString()}
+                                                    </span>
+                                                </div>
+                                                <div style={{ marginBottom:"6px" }}>
+                                                    <span style={{ fontSize:"0.68rem",fontWeight:600,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.05em" }}>Patient</span>
+                                                    <p style={{ fontFamily:"monospace",fontSize:"0.78rem",color:"#0f172a",marginTop:"2px",wordBreak:"break-all" }}>{rec.patientAddress}</p>
+                                                </div>
+                                                <div>
+                                                    <span style={{ fontSize:"0.68rem",fontWeight:600,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.05em" }}>CID</span>
+                                                    <p style={{ fontFamily:"monospace",fontSize:"0.72rem",color:"#2E7DDB",marginTop:"2px",wordBreak:"break-all",lineHeight:1.4 }}>{rec.cid}</p>
+                                                </div>
+                                            </div>
+                                            {rec.status === 'APPROVED' && (
+                                                <div style={{ flexShrink:0 }}>
+                                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                                </div>
+                                            )}
+                                            {rec.status === 'PENDING' && (
+                                                <div style={{ flexShrink:0,opacity:0.5 }}>
+                                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    <p style={{ textAlign:"center",fontSize:"0.7rem",color:"#94a3b8",marginTop:"16px" }}>
+                        Auto-refreshes every 30 seconds. You'll be notified when a patient approves.
+                    </p>
                 </div>
             )}
 

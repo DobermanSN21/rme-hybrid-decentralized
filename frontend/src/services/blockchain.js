@@ -230,6 +230,34 @@ export async function getMyCids(signer) {
 }
 
 // ============================================================
+// Doctor: Get records submitted by this doctor (via events)
+// ============================================================
+
+export async function getSubmittedByDoctor(signer) {
+    const contract = getContract(signer);
+    const address = await signer.getAddress();
+
+    const [submitEvents, approvedEvents, rejectedEvents] = await Promise.all([
+        contract.queryFilter(contract.filters.RecordSubmitted(null, address)),
+        contract.queryFilter(contract.filters.RecordApproved()),
+        contract.queryFilter(contract.filters.RecordRejected()),
+    ]);
+
+    const approvedCids = new Set(approvedEvents.map(e => e.args.cid));
+    const rejectedCids = new Set(rejectedEvents.map(e => e.args.cid));
+
+    return submitEvents.map(e => ({
+        patientAddress: e.args.patient,
+        doctorAddress: e.args.doctor,
+        cid: e.args.cid,
+        timestamp: Number(e.args.timestamp),
+        status: approvedCids.has(e.args.cid) ? 'APPROVED'
+               : rejectedCids.has(e.args.cid) ? 'REJECTED'
+               : 'PENDING',
+    }));
+}
+
+// ============================================================
 // Access Management
 // ============================================================
 
