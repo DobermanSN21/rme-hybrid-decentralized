@@ -25,6 +25,10 @@ const ABI = ContractArtifact.abi;
 // Wallet Connection
 // ============================================================
 
+// Sepolia testnet chain ID = 11155111 (0xaa36a7)
+const TARGET_CHAIN_ID = "0xaa36a7";
+const TARGET_CHAIN_NAME = "Sepolia";
+
 export async function connectWallet() {
     if (!window.ethereum) {
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -38,8 +42,36 @@ export async function connectWallet() {
         );
     }
 
+    await window.ethereum.request({ method: "eth_requestAccounts" });
+
+    // Switch to Sepolia if not already on it
+    const chainId = await window.ethereum.request({ method: "eth_chainId" });
+    if (chainId !== TARGET_CHAIN_ID) {
+        try {
+            await window.ethereum.request({
+                method: "wallet_switchEthereumChain",
+                params: [{ chainId: TARGET_CHAIN_ID }],
+            });
+        } catch (switchErr) {
+            // Chain not added in MetaMask yet — add it
+            if (switchErr.code === 4902) {
+                await window.ethereum.request({
+                    method: "wallet_addEthereumChain",
+                    params: [{
+                        chainId: TARGET_CHAIN_ID,
+                        chainName: "Sepolia Testnet",
+                        nativeCurrency: { name: "SepoliaETH", symbol: "ETH", decimals: 18 },
+                        rpcUrls: ["https://rpc.sepolia.org"],
+                        blockExplorerUrls: ["https://sepolia.etherscan.io"],
+                    }],
+                });
+            } else {
+                throw new Error(`Please switch MetaMask to ${TARGET_CHAIN_NAME} network manually.`);
+            }
+        }
+    }
+
     const provider = new BrowserProvider(window.ethereum);
-    await provider.send("eth_requestAccounts", []);
     const signer = await provider.getSigner();
     const address = await signer.getAddress();
 
