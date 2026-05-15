@@ -235,7 +235,10 @@ export default function DoctorDashboard() {
                     }
                 })
             );
-            setKeyStatusMap(Object.fromEntries(statusEntries));
+            const statusMap = Object.fromEntries(statusEntries);
+            setKeyStatusMap(statusMap);
+            // Only show records the doctor actually has the decryption key for
+            setRecords(recs.filter(r => statusMap[r.cid] === true));
         } catch (err) {
             setRecords([]);
             setError(err.reason || err.message || "Failed to retrieve medical records.");
