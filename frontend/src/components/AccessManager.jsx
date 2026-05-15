@@ -75,6 +75,7 @@ export default function AccessManager() {
     const [selectedCids, setSelectedCids] = useState(new Set());
     const [cids, setCids] = useState([]);
     const [doctors, setDoctors] = useState([]);
+    const [revokeTarget, setRevokeTarget] = useState("");
     const [loading, setLoading] = useState(false);
     const [grantLoading, setGrantLoading] = useState(false);
 
@@ -162,6 +163,7 @@ export default function AccessManager() {
                 setConfirmDialog(null);
                 try {
                     await revokeAccess(account.signer, doctor);
+                    setRevokeTarget("");
                     await loadData();
                 } catch (err) {
                     setError(err.message || "Failed to revoke access.");
@@ -276,6 +278,11 @@ export default function AccessManager() {
                         )}
                     </div>
 
+                    {/* Info note */}
+                    <div style={{ padding:"10px 14px",borderRadius:"10px",background:"#fffbeb",border:"1px solid #fde68a",fontSize:"0.72rem",color:"#92400e",lineHeight:1.5 }}>
+                        <strong>Note:</strong> The doctor will be able to <em>see metadata</em> of all your approved records once access is granted, but can only <em>decrypt</em> the records you select above.
+                    </div>
+
                     {/* Submit */}
                     <button
                         onClick={handleGrant}
@@ -294,70 +301,78 @@ export default function AccessManager() {
                 </div>
             </div>
 
-            {/* Authorized Doctors List */}
+            {/* Authorized Doctors — Revoke Section */}
             <div className="glass-card" style={{ padding: "24px" }}>
-                <h3 className="section-title" style={{ marginBottom: "16px" }}>Doctors with Active Access</h3>
+                <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"16px",flexWrap:"wrap",gap:"8px" }}>
+                    <h3 className="section-title" style={{ marginBottom:0 }}>Doctors with Active Access</h3>
+                    {doctors.length > 0 && (
+                        <span style={{ fontSize:"0.72rem",fontWeight:700,padding:"3px 10px",borderRadius:"20px",background:"#f0fdf9",color:"#0d9488",border:"1px solid #99f6e4" }}>
+                            {doctors.length} active
+                        </span>
+                    )}
+                </div>
 
                 {loading && (
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 0" }}>
+                    <div style={{ display:"flex",alignItems:"center",gap:"8px",padding:"12px 0" }}>
                         <IconLoader size={16} />
-                        <span style={{ fontSize: "0.85rem", color: "#64748b" }}>Loading...</span>
+                        <span style={{ fontSize:"0.85rem",color:"#64748b" }}>Loading...</span>
                     </div>
                 )}
 
-                {!loading && doctors.length === 0 && (
-                    <div style={{ textAlign: "center", padding: "28px 16px" }}>
-                        <div style={{ margin: "0 auto 12px", opacity: 0.5 }}>
+                {!loading && doctors.length === 0 ? (
+                    <div style={{ textAlign:"center",padding:"28px 16px" }}>
+                        <div style={{ margin:"0 auto 12px",opacity:0.5 }}>
                             <IconUsersEmpty size={44} color="#cbd5e1" />
                         </div>
-                        <p style={{ fontSize: "0.85rem", color: "#94a3b8" }}>
-                            No doctors have been granted access yet
-                        </p>
+                        <p style={{ fontSize:"0.85rem",color:"#94a3b8" }}>No doctors have been granted access yet</p>
                     </div>
-                )}
-
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    {doctors.map((doc, i) => (
-                        <div
-                            key={i}
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                padding: "12px 14px",
-                                borderRadius: "10px",
-                                background: "#f8fafc",
-                                border: "1px solid #e2e8f0",
-                                flexWrap: "wrap",
-                                gap: "8px",
-                            }}
-                        >
-                            <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-                                <div style={{
-                                    width: "32px", height: "32px", borderRadius: "8px",
-                                    background: "#f0fdf9", border: "1px solid #99f6e4",
-                                    display: "flex", alignItems: "center", justifyContent: "center",
-                                    flexShrink: 0,
-                                }}>
-                                    <IconStethoscope size={16} color="#0d9488" />
+                ) : !loading && (
+                    <>
+                        {/* Doctor list (read-only, informational) */}
+                        <div style={{ display:"flex",flexDirection:"column",gap:"6px",marginBottom:"20px" }}>
+                            {doctors.map((doc, i) => (
+                                <div key={i} style={{ display:"flex",alignItems:"center",gap:"10px",padding:"10px 12px",borderRadius:"10px",background:"#f8fafc",border:"1px solid #e2e8f0" }}>
+                                    <div style={{ width:"30px",height:"30px",borderRadius:"8px",background:"#f0fdf9",border:"1px solid #99f6e4",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                                        <IconStethoscope size={15} color="#0d9488" />
+                                    </div>
+                                    <div style={{ flex:1,minWidth:0 }}>
+                                        <span className="mono" style={{ fontSize:"0.78rem",color:"#334155",fontWeight:500 }}>{shortenAddr(doc)}</span>
+                                        <div style={{ fontSize:"0.65rem",color:"#94a3b8",marginTop:"1px" }}>Authorized Doctor</div>
+                                    </div>
+                                    <span style={{ fontSize:"0.65rem",fontWeight:700,padding:"2px 8px",borderRadius:"10px",background:"#f0fdf4",color:"#16a34a",border:"1px solid #bbf7d0",flexShrink:0 }}>Active</span>
                                 </div>
-                                <div>
-                                    <span className="mono" style={{ fontSize: "0.8rem", color: "#334155", fontWeight: 500 }}>
-                                        {shortenAddr(doc)}
-                                    </span>
-                                    <div style={{ fontSize: "0.68rem", color: "#94a3b8" }}>Authorized Doctor</div>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => handleRevoke(doc)}
-                                className="btn btn-danger"
-                                style={{ fontSize: "0.75rem", padding: "6px 14px" }}
-                            >
-                                <IconUserX size={13} color="white" /> Revoke
-                            </button>
+                            ))}
                         </div>
-                    ))}
-                </div>
+
+                        {/* Revoke via dropdown */}
+                        <div style={{ padding:"16px",borderRadius:"12px",background:"#fff5f5",border:"1px solid #fecaca" }}>
+                            <div style={{ fontSize:"0.72rem",fontWeight:700,color:"#dc2626",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:"10px" }}>Revoke Access</div>
+                            <div style={{ display:"flex",gap:"8px",flexWrap:"wrap" }}>
+                                <select
+                                    value={revokeTarget}
+                                    onChange={e => setRevokeTarget(e.target.value)}
+                                    style={{ flex:"1 1 200px",padding:"9px 12px",borderRadius:"9px",border:"1.5px solid #fca5a5",background:"white",fontSize:"0.82rem",color:"#334155",fontFamily:"inherit",cursor:"pointer",appearance:"auto" }}
+                                >
+                                    <option value="">— Select doctor to revoke —</option>
+                                    {doctors.map((doc, i) => (
+                                        <option key={i} value={doc}>{doc}</option>
+                                    ))}
+                                </select>
+                                <button
+                                    onClick={() => revokeTarget && handleRevoke(revokeTarget)}
+                                    disabled={!revokeTarget}
+                                    className="btn btn-danger"
+                                    style={{ fontSize:"0.82rem",padding:"9px 20px",flex:"0 0 auto" }}
+                                >
+                                    <IconUserX size={14} color="white" /> Revoke
+                                </button>
+                            </div>
+                            <p style={{ fontSize:"0.7rem",color:"#b91c1c",marginTop:"8px" }}>
+                                Warning: This revokes ALL record access for the selected doctor.
+                            </p>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );

@@ -246,7 +246,12 @@ export default function DoctorDashboard() {
             const url = URL.createObjectURL(blob);
             setDecryptedMap((prev) => ({ ...prev, [cid]: { url, fileType, sha256: decryptedHash } }));
         } catch (err) {
-            setError("Decryption failed: " + (err.message || err));
+            const msg = err.message || String(err);
+            if (msg.includes("No encrypted key") || msg.includes("encrypted key found")) {
+                setError("You don't have the decryption key for this record. Ask the patient to grant access for this specific record via their 'Manage Access' tab.");
+            } else {
+                setError("Decryption failed: " + msg);
+            }
         }
     };
 
