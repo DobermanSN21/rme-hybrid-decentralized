@@ -3,7 +3,7 @@
 // Grant/Revoke doctor access + list authorized doctors
 // ============================================================
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { isAddress } from "ethers";
 import { useWallet } from "../context/WalletContext";
 import ConfirmDialog from "./ConfirmDialog";
@@ -77,7 +77,9 @@ export default function AccessManager() {
     const [manualInput, setManualInput] = useState(false);
     const [manualAddress, setManualAddress] = useState("");
     const [knownDoctors, setKnownDoctors] = useState([]);
-    const [cidDetailsMap, setCidDetailsMap] = useState({}); // cid -> { fileName, fileType, doctorAddress, timestamp }
+    const [cidDetailsMap, setCidDetailsMap] = useState({});
+    const [cidDropdownOpen, setCidDropdownOpen] = useState(false);
+    const cidDropdownRef = useRef(null); // cid -> { fileName, fileType, doctorAddress, timestamp }
     const [selectedCids, setSelectedCids] = useState(new Set());
     const [cids, setCids] = useState([]);
     const [doctors, setDoctors] = useState([]);
@@ -93,6 +95,17 @@ export default function AccessManager() {
         if (!account) return;
         loadData();
     }, [account]);
+
+    // Close CID dropdown on outside click
+    useEffect(() => {
+        const handler = (e) => {
+            if (cidDropdownRef.current && !cidDropdownRef.current.contains(e.target)) {
+                setCidDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, []);
 
     const loadData = async () => {
         setLoading(true);
@@ -282,82 +295,95 @@ export default function AccessManager() {
                         )}
                     </div>
 
-                    {/* CID Selection — multi-select */}
-                    <div>
-                        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"8px" }}>
-                            <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                                Select Medical Records
-                            </label>
-                            {cids.length > 1 && (
-                                <button type="button" onClick={toggleAll} style={{ fontSize:"0.72rem",fontWeight:600,color:"#2E7DDB",background:"none",border:"none",cursor:"pointer",padding:0 }}>
-                                    {selectedCids.size === cids.length ? "Deselect All" : "Select All"}
-                                </button>
-                            )}
-                        </div>
+                    {/* CID Selection — custom multi-select dropdown */}
+                    <div ref={cidDropdownRef} style={{ position:"relative" }}>
+                        <label style={{ display:"block",fontSize:"0.72rem",fontWeight:600,color:"#64748b",marginBottom:"6px",textTransform:"uppercase",letterSpacing:"0.06em" }}>
+                            Select Medical Records
+                        </label>
+
                         {cids.length === 0 ? (
-                            <div style={{ padding: "12px 16px", borderRadius: "10px", background: "#f8fafc", border: "1.5px solid #e2e8f0", color: "#94a3b8", fontSize: "0.85rem" }}>
+                            <div style={{ padding:"12px 16px",borderRadius:"10px",background:"#f8fafc",border:"1.5px solid #e2e8f0",color:"#94a3b8",fontSize:"0.85rem" }}>
                                 No approved medical records available
                             </div>
                         ) : (
-                            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                                {cids.map((cid, i) => {
-                                    const checked = selectedCids.has(cid);
-                                    const detail = cidDetailsMap[cid];
-                                    const isImage = detail?.fileType?.startsWith("image/");
-                                    const isPdf = detail?.fileType === "application/pdf";
-                                    return (
-                                        <button
-                                            key={i}
-                                            type="button"
-                                            onClick={() => toggleCid(cid)}
-                                            style={{
-                                                display: "flex", alignItems: "center", gap: "12px",
-                                                padding: "12px 14px", borderRadius: "10px",
-                                                border: checked ? "2px solid #2E7DDB" : "1.5px solid #e2e8f0",
-                                                background: checked ? "#eef5ff" : "white",
-                                                cursor: "pointer", transition: "all 0.2s ease",
-                                                textAlign: "left", width: "100%",
-                                            }}
-                                        >
-                                            {/* Checkbox */}
-                                            <div style={{ width:"18px",height:"18px",borderRadius:"5px",border:`2px solid ${checked?"#2E7DDB":"#cbd5e1"}`,background:checked?"#2E7DDB":"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.15s" }}>
-                                                {checked && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-                                            </div>
-                                            {/* File type icon */}
-                                            <div style={{ width:"34px",height:"34px",borderRadius:"8px",background:checked?(isImage?"#dbeafe":isPdf?"#fee2e2":"#dbeafe"):(isImage?"#f0f9ff":isPdf?"#fff1f2":"#f8fafc"),display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
-                                                {isImage
-                                                    ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={checked?"#2E7DDB":"#94a3b8"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-                                                    : isPdf
-                                                    ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={checked?"#e11d48":"#94a3b8"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
-                                                    : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={checked?"#2E7DDB":"#94a3b8"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
-                                                }
-                                            </div>
-                                            <div style={{ minWidth: 0, flex: 1 }}>
-                                                <div style={{ fontSize: "0.82rem", fontWeight: 600, color: checked ? "#1e40af" : "#334155", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                                                    {detail?.fileName || `Record #${i + 1}`}
-                                                </div>
-                                                <div style={{ display:"flex", gap:"8px", marginTop:"2px", flexWrap:"wrap" }}>
-                                                    {detail?.fileType && (
-                                                        <span style={{ fontSize:"0.67rem", color: checked ? "#2E7DDB" : "#94a3b8" }}>{detail.fileType}</span>
-                                                    )}
-                                                    {detail?.timestamp && (
-                                                        <span style={{ fontSize:"0.67rem", color:"#94a3b8" }}>
-                                                            {new Date(detail.timestamp * 1000).toLocaleDateString("en-US", { day:"numeric", month:"short", year:"numeric" })}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="mono" style={{ fontSize:"0.65rem", color: checked ? "#93c5fd" : "#cbd5e1", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginTop:"2px" }} title={cid}>
-                                                    {cid}
-                                                </div>
-                                            </div>
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                            <>
+                                {/* Dropdown trigger button */}
+                                <button
+                                    type="button"
+                                    onClick={() => setCidDropdownOpen(o => !o)}
+                                    style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",borderRadius:"10px",border:`1.5px solid ${cidDropdownOpen?"#2E7DDB":"#e2e8f0"}`,background:"white",cursor:"pointer",fontFamily:"inherit",transition:"border 0.15s" }}
+                                >
+                                    <span style={{ fontSize:"0.85rem",color: selectedCids.size===0 ? "#94a3b8" : "#0f172a",fontWeight: selectedCids.size > 0 ? 600 : 400 }}>
+                                        {selectedCids.size === 0
+                                            ? "— Select records —"
+                                            : selectedCids.size === cids.length
+                                            ? `All ${cids.length} records selected`
+                                            : `${selectedCids.size} of ${cids.length} records selected`
+                                        }
+                                    </span>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: cidDropdownOpen?"rotate(180deg)":"none", transition:"transform 0.2s", flexShrink:0 }}>
+                                        <polyline points="6 9 12 15 18 9"/>
+                                    </svg>
+                                </button>
+
+                                {/* Dropdown panel */}
+                                {cidDropdownOpen && (
+                                    <div style={{ position:"absolute",top:"calc(100% + 6px)",left:0,right:0,zIndex:100,background:"white",borderRadius:"12px",border:"1.5px solid #e2e8f0",boxShadow:"0 8px 24px rgba(0,0,0,0.12)",overflow:"hidden" }}>
+                                        {/* Select all row */}
+                                        <div style={{ padding:"10px 14px",borderBottom:"1px solid #f1f5f9",display:"flex",alignItems:"center",justifyContent:"space-between" }}>
+                                            <span style={{ fontSize:"0.72rem",fontWeight:600,color:"#64748b" }}>{selectedCids.size} of {cids.length} selected</span>
+                                            <button type="button" onClick={toggleAll} style={{ fontSize:"0.72rem",fontWeight:700,color:"#2E7DDB",background:"none",border:"none",cursor:"pointer",padding:0,fontFamily:"inherit" }}>
+                                                {selectedCids.size === cids.length ? "Deselect All" : "Select All"}
+                                            </button>
+                                        </div>
+                                        {/* Record items */}
+                                        <div style={{ maxHeight:"280px",overflowY:"auto" }}>
+                                            {cids.map((cid, i) => {
+                                                const checked = selectedCids.has(cid);
+                                                const detail = cidDetailsMap[cid];
+                                                const isImage = detail?.fileType?.startsWith("image/");
+                                                const isPdf = detail?.fileType === "application/pdf";
+                                                return (
+                                                    <div
+                                                        key={i}
+                                                        onClick={() => toggleCid(cid)}
+                                                        style={{ display:"flex",alignItems:"center",gap:"12px",padding:"11px 14px",cursor:"pointer",background:checked?"#f0f7ff":"white",borderBottom:"1px solid #f8fafc",transition:"background 0.1s" }}
+                                                        onMouseEnter={e=>{ if(!checked) e.currentTarget.style.background="#f8fafc"; }}
+                                                        onMouseLeave={e=>{ e.currentTarget.style.background=checked?"#f0f7ff":"white"; }}
+                                                    >
+                                                        {/* Checkbox */}
+                                                        <div style={{ width:"17px",height:"17px",borderRadius:"4px",border:`2px solid ${checked?"#2E7DDB":"#cbd5e1"}`,background:checked?"#2E7DDB":"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.12s" }}>
+                                                            {checked && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                                                        </div>
+                                                        {/* Icon */}
+                                                        <div style={{ width:"32px",height:"32px",borderRadius:"7px",background:isImage?"#f0f9ff":isPdf?"#fff1f2":"#f8fafc",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                                                            {isImage
+                                                                ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2E7DDB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                                                                : isPdf
+                                                                ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
+                                                                : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
+                                                            }
+                                                        </div>
+                                                        {/* Info */}
+                                                        <div style={{ minWidth:0,flex:1 }}>
+                                                            <div style={{ fontSize:"0.82rem",fontWeight:600,color:checked?"#1e40af":"#334155",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>
+                                                                {detail?.fileName || `Record #${i+1}`}
+                                                            </div>
+                                                            <div style={{ fontSize:"0.67rem",color:"#94a3b8",marginTop:"1px" }}>
+                                                                {detail?.fileType}{detail?.timestamp ? ` · ${new Date(detail.timestamp*1000).toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}` : ""}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </>
                         )}
                         {selectedCids.size > 0 && (
                             <p style={{ fontSize:"0.7rem",color:"#64748b",marginTop:"6px" }}>
-                                {selectedCids.size} of {cids.length} record{cids.length > 1 ? "s" : ""} selected — doctor will need {selectedCids.size} transaction{selectedCids.size > 1 ? "s" : ""} to confirm
+                                {selectedCids.size} record{selectedCids.size>1?"s":""} selected — will require {selectedCids.size} blockchain transaction{selectedCids.size>1?"s":""}
                             </p>
                         )}
                     </div>
