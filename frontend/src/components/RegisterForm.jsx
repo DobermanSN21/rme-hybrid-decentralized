@@ -3,7 +3,7 @@
 // Registration + Login form
 // ============================================================
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useWallet, ROLES } from "../context/WalletContext";
 import { registerAsPatient, registerAsDoctor, getRole, getPublicKey as getBlockchainPublicKey } from "../services/blockchain";
 import { generateKeyPair, privateKeyToPublicKey } from "../services/crypto";
@@ -15,22 +15,13 @@ export default function RegisterForm() {
     const [loading, setLoading] = useState(false);
     const [generatedKeys, setGeneratedKeys] = useState(null);
     const [registrationSuccess, setRegistrationSuccess] = useState(false);
-    const [countdown, setCountdown] = useState(5);
     const [loginKey, setLoginKey] = useState("");
     const [loginError, setLoginError] = useState("");
     const [copied, setCopied] = useState(false);
 
-    // Countdown timer — directly sets role when it reaches 0 to trigger redirect
-    useEffect(() => {
-        if (!registrationSuccess) return;
-        if (countdown <= 0) {
-            // Directly set role — no blockchain re-query needed since tx was already confirmed
-            setRole(selectedRole === "patient" ? ROLES.PATIENT : ROLES.DOCTOR);
-            return;
-        }
-        const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
-        return () => clearTimeout(timer);
-    }, [registrationSuccess, countdown, selectedRole, setRole]);
+    const handleGoToDashboard = () => {
+        setRole(selectedRole === "patient" ? ROLES.PATIENT : ROLES.DOCTOR);
+    };
 
     const handleRegister = async () => {
         setLoading(true);
@@ -214,27 +205,24 @@ export default function RegisterForm() {
                     </div>
                 )}
 
-                {/* Redirect Progress */}
-                <div style={{ textAlign: "center" }}>
-                    <p style={{ fontSize: "0.78rem", color: "#94a3b8" }}>
-                        Redirecting to dashboard in {countdown > 0 ? `${countdown}s` : "…"}
+                {/* Confirmation to proceed */}
+                <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "20px" }}>
+                    <p style={{ fontSize: "0.78rem", color: "#94a3b8", textAlign: "center", marginBottom: "14px" }}>
+                        Make sure you have saved your private key before continuing.
                     </p>
-                    <div style={{
-                        width: "100%",
-                        height: "4px",
-                        background: "#f1f5f9",
-                        borderRadius: "4px",
-                        marginTop: "10px",
-                        overflow: "hidden",
-                    }}>
-                        <div style={{
-                            height: "100%",
-                            borderRadius: "4px",
-                            transition: "width 1s linear",
-                            width: `${((5 - countdown) / 5) * 100}%`,
-                            background: "linear-gradient(90deg, #2E7DDB, #14b8a6)",
-                        }} />
-                    </div>
+                    <button
+                        onClick={handleGoToDashboard}
+                        disabled={!copied}
+                        className="btn btn-primary"
+                        style={{ width: "100%", justifyContent: "center", padding: "12px", fontSize: "0.88rem", opacity: copied ? 1 : 0.5, cursor: copied ? "pointer" : "not-allowed" }}
+                    >
+                        {copied ? "✓ I've saved my key — Go to Dashboard" : "Copy your key first to continue"}
+                    </button>
+                    {!copied && (
+                        <p style={{ fontSize: "0.72rem", color: "#f59e0b", textAlign: "center", marginTop: "8px" }}>
+                            ⚠ Click "Copy to Clipboard" above before you can proceed
+                        </p>
+                    )}
                 </div>
             </div>
         );
