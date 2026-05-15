@@ -14,6 +14,8 @@ import {
     getEncryptedKey,
     getPublicKey,
     getMyCids,
+    getMyRecords,
+    getPendingRecords,
 } from "../services/blockchain";
 import {
     decryptWithPrivateKey,
@@ -72,6 +74,9 @@ const IconUsersEmpty = ({ size = 48, color = "#cbd5e1" }) => (
 export default function AccessManager() {
     const { account, privateKey, setError } = useWallet();
     const [doctorAddress, setDoctorAddress] = useState("");
+    const [manualInput, setManualInput] = useState(false);
+    const [manualAddress, setManualAddress] = useState("");
+    const [knownDoctors, setKnownDoctors] = useState([]); // from patient's records
     const [selectedCids, setSelectedCids] = useState(new Set());
     const [cids, setCids] = useState([]);
     const [doctors, setDoctors] = useState([]);
@@ -91,14 +96,22 @@ export default function AccessManager() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [cidList, doctorList] = await Promise.all([
+            const [cidList, doctorList, approvedRecs, pendingRecs] = await Promise.all([
                 getMyCids(account.signer),
                 getAuthorizedDoctors(account.signer),
+                getMyRecords(account.signer),
+                getPendingRecords(account.signer),
             ]);
             setCids(cidList);
             // Deduplicate — contract bug: revoking then re-granting pushes duplicate entries
             setDoctors([...new Set(doctorList)]);
-            if (cidList.length > 0) setSelectedCids(new Set(cidList)); // default: select all
+            if (cidList.length > 0) setSelectedCids(new Set(cidList));
+            // Collect unique doctor addresses from all records
+            const allDoctors = [...new Set([
+                ...approvedRecs.map(r => r.doctorAddress),
+                ...pendingRecs.map(r => r.doctorAddress),
+            ].filter(Boolean))];
+            setKnownDoctors(allDoctors);
         } catch (err) {
             console.error(err);
         } finally {
@@ -118,12 +131,14 @@ export default function AccessManager() {
         setSelectedCids(prev => prev.size === cids.length ? new Set() : new Set(cids));
     };
 
+    const effectiveDoctorAddress = manualInput ? manualAddress.trim() : doctorAddress;
+
     const handleGrant = async () => {
-        if (!doctorAddress || selectedCids.size === 0 || !privateKey) {
-            setError("Please enter doctor address, select at least one record, and ensure private key is imported.");
+        if (!effectiveDoctorAddress || selectedCids.size === 0 || !privateKey) {
+            setError("Please select a doctor, select at least one record, and ensure private key is imported.");
             return;
         }
-        if (!isAddress(doctorAddress)) {
+        if (!isAddress(effectiveDoctorAddress)) {
             setError("Invalid doctor wallet address. Must be a valid Ethereum address (0x...).");
             return;
         }
@@ -132,7 +147,7 @@ export default function AccessManager() {
         setError(null);
         try {
             // Get doctor's public key once (shared for all CIDs)
-            const doctorPubKey = await getPublicKey(account.signer, doctorAddress);
+            const doctorPubKey = await getPublicKey(account.signer, effectiveDoctorAddress);
 
             // Grant access per CID
             for (const cid of selectedCids) {
@@ -141,10 +156,12 @@ export default function AccessManager() {
                 const aesKeyHex = await decryptWithPrivateKey(privateKey, myEncKey);
                 const encKeyForDoctor = await encryptWithPublicKey(doctorPubKey, aesKeyHex);
                 const serializedForDoctor = serializeEncrypted(encKeyForDoctor);
-                await grantAccess(account.signer, doctorAddress, cid, serializedForDoctor);
+                await grantAccess(account.signer, effectiveDoctorAddress, cid, serializedForDoctor);
             }
 
             setDoctorAddress("");
+            setManualAddress("");
+            setManualInput(false);
             await loadData();
         } catch (err) {
             setError(err.message || "Failed to grant access.");
@@ -174,7 +191,9 @@ export default function AccessManager() {
 
     const shortenAddr = (a) => `${a.slice(0, 6)}...${a.slice(-4)}`;
 
-    const addressValid = !doctorAddress || isAddress(doctorAddress);
+    const addressValid = manualInput
+        ? (!manualAddress || isAddress(manualAddress))
+        : true;
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -194,29 +213,64 @@ export default function AccessManager() {
                 <h3 className="section-title" style={{ marginBottom: "20px" }}>Grant Access to Doctor</h3>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                    {/* Doctor Address */}
+                    {/* Doctor Address — dropdown from known doctors */}
                     <div>
-                        <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                            Doctor Wallet Address
+                        <label style={{ display:"block",fontSize:"0.72rem",fontWeight:600,color:"#64748b",marginBottom:"6px",textTransform:"uppercase",letterSpacing:"0.06em" }}>
+                            Select Doctor
                         </label>
-                        <input
-                            type="text"
-                            value={doctorAddress}
-                            onChange={(e) => setDoctorAddress(e.target.value)}
-                            placeholder="0x..."
-                            className="input-field"
-                            style={{
-                                borderColor: !addressValid ? "#fca5a5" : undefined,
-                                background: !addressValid ? "#fff1f2" : undefined,
-                            }}
-                        />
-                        {!addressValid && (
-                            <div style={{ display: "flex", alignItems: "center", gap: "5px", marginTop: "6px" }}>
-                                <IconAlertCircle size={13} color="#e11d48" />
-                                <span style={{ fontSize: "0.75rem", color: "#e11d48" }}>
-                                    Invalid Ethereum address format
-                                </span>
-                            </div>
+
+                        {!manualInput ? (
+                            <>
+                                <select
+                                    value={doctorAddress}
+                                    onChange={e => {
+                                        if (e.target.value === "__manual__") {
+                                            setManualInput(true);
+                                            setDoctorAddress("");
+                                        } else {
+                                            setDoctorAddress(e.target.value);
+                                        }
+                                    }}
+                                    style={{ width:"100%",padding:"10px 12px",borderRadius:"10px",border:"1.5px solid #e2e8f0",background:"white",fontSize:"0.85rem",color: doctorAddress ? "#0f172a" : "#94a3b8",fontFamily:"inherit",cursor:"pointer",appearance:"auto",outline:"none" }}
+                                >
+                                    <option value="">— Select a doctor —</option>
+                                    {knownDoctors.map((addr, i) => (
+                                        <option key={i} value={addr}>
+                                            {addr.slice(0,10)}...{addr.slice(-8)}
+                                        </option>
+                                    ))}
+                                    <option value="__manual__">✏️ Enter address manually...</option>
+                                </select>
+                                {/* Show full address of selected */}
+                                {doctorAddress && isAddress(doctorAddress) && (
+                                    <div style={{ marginTop:"6px",padding:"6px 10px",borderRadius:"8px",background:"#f0fdf9",border:"1px solid #99f6e4" }}>
+                                        <span style={{ fontFamily:"monospace",fontSize:"0.7rem",color:"#0d9488",wordBreak:"break-all" }}>{doctorAddress}</span>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <div style={{ display:"flex",gap:"8px",alignItems:"center",marginBottom:"6px" }}>
+                                    <button type="button" onClick={()=>{setManualInput(false);setManualAddress("");}} style={{ fontSize:"0.72rem",color:"#2E7DDB",background:"none",border:"none",cursor:"pointer",padding:0,fontFamily:"inherit" }}>
+                                        ← Back to list
+                                    </button>
+                                </div>
+                                <input
+                                    type="text"
+                                    value={manualAddress}
+                                    onChange={e => setManualAddress(e.target.value)}
+                                    placeholder="0x..."
+                                    className="input-field"
+                                    style={{ borderColor: manualAddress && !isAddress(manualAddress) ? "#fca5a5" : undefined, background: manualAddress && !isAddress(manualAddress) ? "#fff1f2" : undefined }}
+                                    autoFocus
+                                />
+                                {manualAddress && !isAddress(manualAddress) && (
+                                    <div style={{ display:"flex",alignItems:"center",gap:"5px",marginTop:"6px" }}>
+                                        <IconAlertCircle size={13} color="#e11d48" />
+                                        <span style={{ fontSize:"0.75rem",color:"#e11d48" }}>Invalid Ethereum address format</span>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
 
@@ -286,7 +340,7 @@ export default function AccessManager() {
                     {/* Submit */}
                     <button
                         onClick={handleGrant}
-                        disabled={grantLoading || !doctorAddress || selectedCids.size === 0 || !addressValid}
+                        disabled={grantLoading || !effectiveDoctorAddress || selectedCids.size === 0 || !addressValid}
                         className="btn btn-accent"
                         style={{
                             width: "100%", justifyContent: "center",
