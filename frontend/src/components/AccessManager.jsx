@@ -72,7 +72,7 @@ const IconUsersEmpty = ({ size = 48, color = "#cbd5e1" }) => (
 export default function AccessManager() {
     const { account, privateKey, setError } = useWallet();
     const [doctorAddress, setDoctorAddress] = useState("");
-    const [selectedCid, setSelectedCid] = useState("");
+    const [selectedCids, setSelectedCids] = useState(new Set());
     const [cids, setCids] = useState([]);
     const [doctors, setDoctors] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -95,8 +95,9 @@ export default function AccessManager() {
                 getAuthorizedDoctors(account.signer),
             ]);
             setCids(cidList);
-            setDoctors(doctorList);
-            if (cidList.length > 0 && !selectedCid) setSelectedCid(cidList[0]);
+            // Deduplicate — contract bug: revoking then re-granting pushes duplicate entries
+            setDoctors([...new Set(doctorList)]);
+            if (cidList.length > 0) setSelectedCids(new Set(cidList)); // default: select all
         } catch (err) {
             console.error(err);
         } finally {
@@ -104,9 +105,21 @@ export default function AccessManager() {
         }
     };
 
+    const toggleCid = (cid) => {
+        setSelectedCids(prev => {
+            const next = new Set(prev);
+            next.has(cid) ? next.delete(cid) : next.add(cid);
+            return next;
+        });
+    };
+
+    const toggleAll = () => {
+        setSelectedCids(prev => prev.size === cids.length ? new Set() : new Set(cids));
+    };
+
     const handleGrant = async () => {
-        if (!doctorAddress || !selectedCid || !privateKey) {
-            setError("Please enter doctor address, select a CID, and ensure private key is imported.");
+        if (!doctorAddress || selectedCids.size === 0 || !privateKey) {
+            setError("Please enter doctor address, select at least one record, and ensure private key is imported.");
             return;
         }
         if (!isAddress(doctorAddress)) {
@@ -117,22 +130,18 @@ export default function AccessManager() {
         setGrantLoading(true);
         setError(null);
         try {
-            // 1. Get my encrypted AES key for this CID
-            const myEncKeyStr = await getEncryptedKey(account.signer, selectedCid);
-            const myEncKey = deserializeEncrypted(myEncKeyStr);
-
-            // 2. Decrypt AES key using my private key
-            const aesKeyHex = await decryptWithPrivateKey(privateKey, myEncKey);
-
-            // 3. Get doctor's public key from blockchain
+            // Get doctor's public key once (shared for all CIDs)
             const doctorPubKey = await getPublicKey(account.signer, doctorAddress);
 
-            // 4. Re-encrypt AES key with doctor's public key
-            const encKeyForDoctor = await encryptWithPublicKey(doctorPubKey, aesKeyHex);
-            const serializedForDoctor = serializeEncrypted(encKeyForDoctor);
-
-            // 5. Call smart contract
-            await grantAccess(account.signer, doctorAddress, selectedCid, serializedForDoctor);
+            // Grant access per CID
+            for (const cid of selectedCids) {
+                const myEncKeyStr = await getEncryptedKey(account.signer, cid);
+                const myEncKey = deserializeEncrypted(myEncKeyStr);
+                const aesKeyHex = await decryptWithPrivateKey(privateKey, myEncKey);
+                const encKeyForDoctor = await encryptWithPublicKey(doctorPubKey, aesKeyHex);
+                const serializedForDoctor = serializeEncrypted(encKeyForDoctor);
+                await grantAccess(account.signer, doctorAddress, cid, serializedForDoctor);
+            }
 
             setDoctorAddress("");
             await loadData();
@@ -209,60 +218,68 @@ export default function AccessManager() {
                         )}
                     </div>
 
-                    {/* CID Selection */}
+                    {/* CID Selection — multi-select */}
                     <div>
-                        <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "#64748b", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                            Select Medical Record (CID)
-                        </label>
+                        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"8px" }}>
+                            <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                                Select Medical Records
+                            </label>
+                            {cids.length > 1 && (
+                                <button type="button" onClick={toggleAll} style={{ fontSize:"0.72rem",fontWeight:600,color:"#2E7DDB",background:"none",border:"none",cursor:"pointer",padding:0 }}>
+                                    {selectedCids.size === cids.length ? "Deselect All" : "Select All"}
+                                </button>
+                            )}
+                        </div>
                         {cids.length === 0 ? (
                             <div style={{ padding: "12px 16px", borderRadius: "10px", background: "#f8fafc", border: "1.5px solid #e2e8f0", color: "#94a3b8", fontSize: "0.85rem" }}>
-                                No medical records available
+                                No approved medical records available
                             </div>
                         ) : (
                             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                                {cids.map((cid, i) => (
-                                    <button
-                                        key={i}
-                                        type="button"
-                                        onClick={() => setSelectedCid(cid)}
-                                        style={{
-                                            display: "flex", alignItems: "center", gap: "10px",
-                                            padding: "12px 14px", borderRadius: "10px",
-                                            border: selectedCid === cid ? "2px solid #2E7DDB" : "1.5px solid #e2e8f0",
-                                            background: selectedCid === cid ? "#eef5ff" : "white",
-                                            cursor: "pointer", transition: "all 0.2s ease",
-                                            textAlign: "left", width: "100%",
-                                        }}
-                                    >
-                                        <div style={{
-                                            width: "32px", height: "32px", borderRadius: "8px",
-                                            background: selectedCid === cid ? "#dbeafe" : "#f1f5f9",
-                                            display: "flex", alignItems: "center", justifyContent: "center",
-                                            flexShrink: 0,
-                                        }}>
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={selectedCid === cid ? "#2E7DDB" : "#94a3b8"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
-                                        </div>
-                                        <div style={{ minWidth: 0, flex: 1 }}>
-                                            <div style={{ fontSize: "0.72rem", fontWeight: 600, color: selectedCid === cid ? "#2E7DDB" : "#64748b", marginBottom: "2px" }}>
-                                                Record #{i + 1}
+                                {cids.map((cid, i) => {
+                                    const checked = selectedCids.has(cid);
+                                    return (
+                                        <button
+                                            key={i}
+                                            type="button"
+                                            onClick={() => toggleCid(cid)}
+                                            style={{
+                                                display: "flex", alignItems: "center", gap: "10px",
+                                                padding: "12px 14px", borderRadius: "10px",
+                                                border: checked ? "2px solid #2E7DDB" : "1.5px solid #e2e8f0",
+                                                background: checked ? "#eef5ff" : "white",
+                                                cursor: "pointer", transition: "all 0.2s ease",
+                                                textAlign: "left", width: "100%",
+                                            }}
+                                        >
+                                            {/* Checkbox visual */}
+                                            <div style={{ width:"18px",height:"18px",borderRadius:"5px",border:`2px solid ${checked?"#2E7DDB":"#cbd5e1"}`,background:checked?"#2E7DDB":"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.15s" }}>
+                                                {checked && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                                             </div>
-                                            <div className="mono" style={{ fontSize: "0.7rem", color: selectedCid === cid ? "#1e40af" : "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={cid}>
-                                                {cid}
+                                            <div style={{ minWidth: 0, flex: 1 }}>
+                                                <div style={{ fontSize: "0.72rem", fontWeight: 600, color: checked ? "#2E7DDB" : "#64748b", marginBottom: "2px" }}>
+                                                    Record #{i + 1}
+                                                </div>
+                                                <div className="mono" style={{ fontSize: "0.7rem", color: checked ? "#1e40af" : "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={cid}>
+                                                    {cid}
+                                                </div>
                                             </div>
-                                        </div>
-                                        {selectedCid === cid && (
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2E7DDB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                                        )}
-                                    </button>
-                                ))}
+                                        </button>
+                                    );
+                                })}
                             </div>
+                        )}
+                        {selectedCids.size > 0 && (
+                            <p style={{ fontSize:"0.7rem",color:"#64748b",marginTop:"6px" }}>
+                                {selectedCids.size} of {cids.length} record{cids.length > 1 ? "s" : ""} selected — doctor will need {selectedCids.size} transaction{selectedCids.size > 1 ? "s" : ""} to confirm
+                            </p>
                         )}
                     </div>
 
                     {/* Submit */}
                     <button
                         onClick={handleGrant}
-                        disabled={grantLoading || !doctorAddress || !selectedCid || !addressValid}
+                        disabled={grantLoading || !doctorAddress || selectedCids.size === 0 || !addressValid}
                         className="btn btn-accent"
                         style={{
                             width: "100%", justifyContent: "center",
@@ -271,7 +288,7 @@ export default function AccessManager() {
                     >
                         {grantLoading
                             ? <><IconLoader size={15} /> Encrypting & Submitting...</>
-                            : <><IconSend size={15} /> Grant Access</>
+                            : <><IconSend size={15} /> Grant Access{selectedCids.size > 1 ? ` (${selectedCids.size} Records)` : ""}</>
                         }
                     </button>
                 </div>
