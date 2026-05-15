@@ -1,110 +1,69 @@
 // components/AccessManager.jsx
-// ============================================================
-// Grant/Revoke doctor access + list authorized doctors
-// ============================================================
 
 import { useState, useEffect, useRef } from "react";
 import { isAddress } from "ethers";
 import { useWallet } from "../context/WalletContext";
 import ConfirmDialog from "./ConfirmDialog";
 import {
-    grantAccess,
-    revokeAccess,
-    getAuthorizedDoctors,
-    getEncryptedKey,
-    getPublicKey,
-    getMyCids,
-    getMyRecords,
-    getPendingRecords,
+    grantAccess, revokeAccess, getAuthorizedDoctors,
+    getEncryptedKey, getPublicKey, getMyCids,
+    getMyRecords, getPendingRecords,
 } from "../services/blockchain";
 import {
-    decryptWithPrivateKey,
-    encryptWithPublicKey,
-    deserializeEncrypted,
-    serializeEncrypted,
+    decryptWithPrivateKey, encryptWithPublicKey,
+    deserializeEncrypted, serializeEncrypted,
 } from "../services/crypto";
 
-// SVG Icons
-const IconSend = ({ size = 14, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" />
-    </svg>
-);
-
-const IconShieldOff = ({ size = 14, color = "currentColor" }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="m2 2 20 20" /><path d="M5 5a1 1 0 0 0-1 1v7c0 5 3.5 7.5 7.67 8.94a1 1 0 0 0 .67.01c2.35-.82 4.48-2.34 5.86-4.54" />
-        <path d="M9.3 3.18A1 1 0 0 1 10 3h4a1 1 0 0 1 .7.3l3.65 3.52a1 1 0 0 1 .3.7V13" />
-    </svg>
-);
-
-const IconStethoscope = ({ size = 16, color = "#0d9488" }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3" />
-        <path d="M8 15v1a6 6 0 0 0 6 6 6 6 0 0 0 6-6v-4" />
-        <circle cx="20" cy="10" r="2" />
-    </svg>
-);
-
-const IconUserX = ({ size = 16, color = "#e11d48" }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="17" x2="22" y1="8" y2="13" /><line x1="22" x2="17" y1="8" y2="13" />
+const Ico = ({ d, size = 14, color = "currentColor", fill = "none", sw = 2 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+        {d}
     </svg>
 );
 
 const IconLoader = ({ size = 14 }) => (
     <svg className="animate-spin" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-    </svg>
-);
-
-const IconAlertCircle = ({ size = 14, color = "#e11d48" }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" />
-    </svg>
-);
-
-const IconUsersEmpty = ({ size = 48, color = "#cbd5e1" }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
-        <path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
     </svg>
 );
 
 export default function AccessManager() {
     const { account, privateKey, setError } = useWallet();
+
+    // Grant form state
+    const [doctorDropOpen, setDoctorDropOpen] = useState(false);
     const [doctorAddress, setDoctorAddress] = useState("");
     const [manualInput, setManualInput] = useState(false);
     const [manualAddress, setManualAddress] = useState("");
     const [knownDoctors, setKnownDoctors] = useState([]);
-    const [cidDetailsMap, setCidDetailsMap] = useState({});
+
+    // Record selection state
     const [cidDropdownOpen, setCidDropdownOpen] = useState(false);
-    const cidDropdownRef = useRef(null); // cid -> { fileName, fileType, doctorAddress, timestamp }
     const [selectedCids, setSelectedCids] = useState(new Set());
     const [cids, setCids] = useState([]);
+    const [cidDetailsMap, setCidDetailsMap] = useState({});
+
+    // Revoke state
     const [doctors, setDoctors] = useState([]);
     const [revokeTarget, setRevokeTarget] = useState("");
+
+    // Loading
     const [loading, setLoading] = useState(false);
     const [grantLoading, setGrantLoading] = useState(false);
-
-    // Confirmation dialog state
     const [confirmDialog, setConfirmDialog] = useState(null);
 
-    // Load CIDs and authorized doctors
-    useEffect(() => {
-        if (!account) return;
-        loadData();
-    }, [account]);
+    const doctorDropRef = useRef(null);
+    const cidDropdownRef = useRef(null);
 
-    // Close CID dropdown on outside click
+    useEffect(() => { if (account) loadData(); }, [account]);
+
+    // Close dropdowns on outside click
     useEffect(() => {
-        const handler = (e) => {
-            if (cidDropdownRef.current && !cidDropdownRef.current.contains(e.target)) {
-                setCidDropdownOpen(false);
-            }
+        const h = (e) => {
+            if (doctorDropRef.current && !doctorDropRef.current.contains(e.target)) setDoctorDropOpen(false);
+            if (cidDropdownRef.current && !cidDropdownRef.current.contains(e.target)) setCidDropdownOpen(false);
         };
-        document.addEventListener("mousedown", handler);
-        return () => document.removeEventListener("mousedown", handler);
+        document.addEventListener("mousedown", h);
+        return () => document.removeEventListener("mousedown", h);
     }, []);
 
     const loadData = async () => {
@@ -117,260 +76,214 @@ export default function AccessManager() {
                 getPendingRecords(account.signer),
             ]);
             setCids(cidList);
-            // Deduplicate — contract bug: revoking then re-granting pushes duplicate entries
             setDoctors([...new Set(doctorList)]);
-            setSelectedCids(new Set()); // no pre-selection — patient must consciously choose
-            // Collect unique doctor addresses from all records
+            setSelectedCids(new Set());
             const allDoctors = [...new Set([
                 ...approvedRecs.map(r => r.doctorAddress),
                 ...pendingRecs.map(r => r.doctorAddress),
             ].filter(Boolean))];
             setKnownDoctors(allDoctors);
-
-            // Build CID → record detail map for display
-            const detailMap = {};
+            const dm = {};
             for (const r of approvedRecs) {
-                if (r.cid) detailMap[r.cid] = { fileName: r.fileName, fileType: r.fileType, doctorAddress: r.doctorAddress, timestamp: r.timestamp };
+                if (r.cid) dm[r.cid] = { fileName: r.fileName, fileType: r.fileType, timestamp: r.timestamp };
             }
-            setCidDetailsMap(detailMap);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const toggleCid = (cid) => {
-        setSelectedCids(prev => {
-            const next = new Set(prev);
-            next.has(cid) ? next.delete(cid) : next.add(cid);
-            return next;
-        });
-    };
-
-    const toggleAll = () => {
-        setSelectedCids(prev => prev.size === cids.length ? new Set() : new Set(cids));
+            setCidDetailsMap(dm);
+        } catch (err) { console.error(err); }
+        finally { setLoading(false); }
     };
 
     const effectiveDoctorAddress = manualInput ? manualAddress.trim() : doctorAddress;
+    const addressValid = manualInput ? (!manualAddress || isAddress(manualAddress)) : true;
+
+    const toggleCid = (cid) => setSelectedCids(prev => { const n = new Set(prev); n.has(cid) ? n.delete(cid) : n.add(cid); return n; });
+    const toggleAll = () => setSelectedCids(prev => prev.size === cids.length ? new Set() : new Set(cids));
 
     const handleGrant = async () => {
         if (!effectiveDoctorAddress || selectedCids.size === 0 || !privateKey) {
-            setError("Please select a doctor, select at least one record, and ensure private key is imported.");
+            setError("Select a doctor, select at least one record, and ensure private key is imported.");
             return;
         }
-        if (!isAddress(effectiveDoctorAddress)) {
-            setError("Invalid doctor wallet address. Must be a valid Ethereum address (0x...).");
-            return;
-        }
-
-        setGrantLoading(true);
-        setError(null);
+        if (!isAddress(effectiveDoctorAddress)) { setError("Invalid Ethereum address."); return; }
+        setGrantLoading(true); setError(null);
         try {
-            // Get doctor's public key once (shared for all CIDs)
             const doctorPubKey = await getPublicKey(account.signer, effectiveDoctorAddress);
-
-            // Grant access per CID
             for (const cid of selectedCids) {
-                const myEncKeyStr = await getEncryptedKey(account.signer, cid);
-                const myEncKey = deserializeEncrypted(myEncKeyStr);
+                const myEncKey = deserializeEncrypted(await getEncryptedKey(account.signer, cid));
                 const aesKeyHex = await decryptWithPrivateKey(privateKey, myEncKey);
-                const encKeyForDoctor = await encryptWithPublicKey(doctorPubKey, aesKeyHex);
-                const serializedForDoctor = serializeEncrypted(encKeyForDoctor);
-                await grantAccess(account.signer, effectiveDoctorAddress, cid, serializedForDoctor);
+                const encForDoctor = serializeEncrypted(await encryptWithPublicKey(doctorPubKey, aesKeyHex));
+                await grantAccess(account.signer, effectiveDoctorAddress, cid, encForDoctor);
             }
-
-            setDoctorAddress("");
-            setManualAddress("");
-            setManualInput(false);
+            setDoctorAddress(""); setManualAddress(""); setManualInput(false);
             await loadData();
-        } catch (err) {
-            setError(err.message || "Failed to grant access.");
-        } finally {
-            setGrantLoading(false);
-        }
+        } catch (err) { setError(err.message || "Failed to grant access."); }
+        finally { setGrantLoading(false); }
     };
 
     const handleRevoke = (doctor) => {
         setConfirmDialog({
             title: "Revoke Doctor Access",
-            message: `Are you sure you want to revoke access for doctor ${doctor.slice(0, 6)}...${doctor.slice(-4)}? They will no longer be able to view your medical records.`,
+            message: "This doctor will immediately lose access to all your medical records.",
             confirmLabel: "Revoke Access",
             variant: "danger",
+            details: [{ label: "Doctor", value: doctor, mono: true }],
             onConfirm: async () => {
                 setConfirmDialog(null);
-                try {
-                    await revokeAccess(account.signer, doctor);
-                    setRevokeTarget("");
-                    await loadData();
-                } catch (err) {
-                    setError(err.message || "Failed to revoke access.");
-                }
+                try { await revokeAccess(account.signer, doctor); setRevokeTarget(""); await loadData(); }
+                catch (err) { setError(err.message || "Failed to revoke access."); }
             },
         });
     };
 
-    const shortenAddr = (a) => `${a.slice(0, 6)}...${a.slice(-4)}`;
+    const short = (a) => `${a.slice(0, 8)}...${a.slice(-6)}`;
 
-    const addressValid = manualInput
-        ? (!manualAddress || isAddress(manualAddress))
-        : true;
+    // ── helpers for file icons ──────────────────────────────────
+    const FileIcon = ({ fileType, size = 15, color }) => {
+        const c = color || (fileType?.startsWith("image/") ? "#2E7DDB" : fileType === "application/pdf" ? "#e11d48" : "#94a3b8");
+        if (fileType?.startsWith("image/")) return <Ico size={size} color={c} d={<><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></>}/>;
+        return <Ico size={size} color={c} d={<><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></>}/>;
+    };
+
+    const Label = ({ children }) => (
+        <div style={{ fontSize:"0.68rem",fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:"7px" }}>{children}</div>
+    );
 
     return (
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-            {/* Confirmation Dialog */}
+        <div style={{ display:"flex",flexDirection:"column",gap:"16px" }}>
             <ConfirmDialog
-                isOpen={!!confirmDialog}
-                title={confirmDialog?.title || ""}
-                message={confirmDialog?.message || ""}
-                confirmLabel={confirmDialog?.confirmLabel}
-                variant={confirmDialog?.variant}
-                onConfirm={confirmDialog?.onConfirm || (() => {})}
-                onCancel={() => setConfirmDialog(null)}
+                isOpen={!!confirmDialog} title={confirmDialog?.title||""} message={confirmDialog?.message||""}
+                details={confirmDialog?.details} confirmLabel={confirmDialog?.confirmLabel}
+                variant={confirmDialog?.variant} onConfirm={confirmDialog?.onConfirm||(()=>{})} onCancel={()=>setConfirmDialog(null)}
             />
 
-            {/* Grant Access Form */}
-            <div className="glass-card" style={{ padding: "24px" }}>
-                <h3 className="section-title" style={{ marginBottom: "20px" }}>Grant Access to Doctor</h3>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                    {/* Doctor Address — dropdown from known doctors */}
+            {/* ── GRANT ACCESS ────────────────────────────────── */}
+            <div className="glass-card" style={{ padding:"24px" }}>
+                <div style={{ display:"flex",alignItems:"center",gap:"10px",marginBottom:"20px" }}>
+                    <div style={{ width:"34px",height:"34px",borderRadius:"10px",background:"#eef5ff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                        <Ico size={16} color="#2E7DDB" d={<><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></>}/>
+                    </div>
                     <div>
-                        <label style={{ display:"block",fontSize:"0.72rem",fontWeight:600,color:"#64748b",marginBottom:"6px",textTransform:"uppercase",letterSpacing:"0.06em" }}>
-                            Select Doctor
-                        </label>
+                        <h3 style={{ fontSize:"0.95rem",fontWeight:700,color:"#0f172a",margin:0 }}>Grant Access to Doctor</h3>
+                        <p style={{ fontSize:"0.72rem",color:"#94a3b8",margin:0 }}>Share selected records with a specific doctor</p>
+                    </div>
+                </div>
 
+                <div style={{ display:"flex",flexDirection:"column",gap:"14px" }}>
+
+                    {/* Doctor picker */}
+                    <div ref={doctorDropRef} style={{ position:"relative" }}>
+                        <Label>Doctor</Label>
                         {!manualInput ? (
                             <>
-                                <select
-                                    value={doctorAddress}
-                                    onChange={e => {
-                                        if (e.target.value === "__manual__") {
-                                            setManualInput(true);
-                                            setDoctorAddress("");
-                                        } else {
-                                            setDoctorAddress(e.target.value);
-                                        }
-                                    }}
-                                    style={{ width:"100%",padding:"10px 12px",borderRadius:"10px",border:"1.5px solid #e2e8f0",background:"white",fontSize:"0.85rem",color: doctorAddress ? "#0f172a" : "#94a3b8",fontFamily:"inherit",cursor:"pointer",appearance:"auto",outline:"none" }}
-                                >
-                                    <option value="">— Select a doctor —</option>
-                                    {knownDoctors.map((addr, i) => (
-                                        <option key={i} value={addr}>
-                                            {addr.slice(0,10)}...{addr.slice(-8)}
-                                        </option>
-                                    ))}
-                                    <option value="__manual__">✏️ Enter address manually...</option>
-                                </select>
-                                {/* Show full address of selected */}
-                                {doctorAddress && isAddress(doctorAddress) && (
-                                    <div style={{ marginTop:"6px",padding:"6px 10px",borderRadius:"8px",background:"#f0fdf9",border:"1px solid #99f6e4" }}>
-                                        <span style={{ fontFamily:"monospace",fontSize:"0.7rem",color:"#0d9488",wordBreak:"break-all" }}>{doctorAddress}</span>
+                                <button type="button" onClick={() => setDoctorDropOpen(o => !o)}
+                                    style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 13px",borderRadius:"10px",border:`1.5px solid ${doctorDropOpen?"#2E7DDB":"#e2e8f0"}`,background:"white",cursor:"pointer",fontFamily:"inherit",transition:"border 0.15s",textAlign:"left" }}>
+                                    <span style={{ fontSize:"0.85rem",color:doctorAddress?"#0f172a":"#94a3b8",fontWeight:doctorAddress?600:400,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1 }}>
+                                        {doctorAddress ? short(doctorAddress) : "— Select a doctor —"}
+                                    </span>
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform:doctorDropOpen?"rotate(180deg)":"none",transition:"transform 0.2s",flexShrink:0,marginLeft:"8px" }}><polyline points="6 9 12 15 18 9"/></svg>
+                                </button>
+
+                                {doctorDropOpen && (
+                                    <div style={{ position:"absolute",top:"calc(100% + 6px)",left:0,right:0,zIndex:200,background:"white",borderRadius:"12px",border:"1.5px solid #e2e8f0",boxShadow:"0 8px 24px rgba(0,0,0,0.12)",overflow:"hidden" }}>
+                                        {knownDoctors.length === 0 ? (
+                                            <div style={{ padding:"14px 16px",fontSize:"0.82rem",color:"#94a3b8",textAlign:"center" }}>No known doctors yet</div>
+                                        ) : knownDoctors.map((addr, i) => (
+                                            <div key={i} onClick={() => { setDoctorAddress(addr); setDoctorDropOpen(false); }}
+                                                style={{ display:"flex",alignItems:"center",gap:"10px",padding:"11px 14px",cursor:"pointer",background:doctorAddress===addr?"#eef5ff":"white",borderBottom:"1px solid #f8fafc",transition:"background 0.1s" }}
+                                                onMouseEnter={e=>{ if(doctorAddress!==addr) e.currentTarget.style.background="#f8fafc"; }}
+                                                onMouseLeave={e=>{ e.currentTarget.style.background=doctorAddress===addr?"#eef5ff":"white"; }}>
+                                                <div style={{ width:"30px",height:"30px",borderRadius:"8px",background:"#f0fdf9",border:"1px solid #99f6e4",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                                                    <Ico size={14} color="#0d9488" d={<><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6 6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></>}/>
+                                                </div>
+                                                <div style={{ flex:1,minWidth:0 }}>
+                                                    <div style={{ fontSize:"0.8rem",fontWeight:600,color:doctorAddress===addr?"#1e40af":"#334155",fontFamily:"monospace" }}>{short(addr)}</div>
+                                                    <div style={{ fontSize:"0.64rem",color:"#94a3b8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontFamily:"monospace" }}>{addr}</div>
+                                                </div>
+                                                {doctorAddress === addr && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2E7DDB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                                            </div>
+                                        ))}
+                                        <div onClick={() => { setManualInput(true); setDoctorDropOpen(false); }}
+                                            style={{ display:"flex",alignItems:"center",gap:"8px",padding:"10px 14px",cursor:"pointer",borderTop:"1px solid #f1f5f9",color:"#2E7DDB",fontSize:"0.78rem",fontWeight:600 }}
+                                            onMouseEnter={e=>e.currentTarget.style.background="#f0f7ff"}
+                                            onMouseLeave={e=>e.currentTarget.style.background="white"}>
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                                            Enter address manually...
+                                        </div>
+                                    </div>
+                                )}
+
+                                {doctorAddress && (
+                                    <div style={{ marginTop:"6px",padding:"5px 10px",borderRadius:"8px",background:"#f0fdf9",border:"1px solid #99f6e4",display:"flex",alignItems:"center",gap:"6px" }}>
+                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <span style={{ fontFamily:"monospace",fontSize:"0.68rem",color:"#0d9488",wordBreak:"break-all" }}>{doctorAddress}</span>
                                     </div>
                                 )}
                             </>
                         ) : (
                             <>
-                                <div style={{ display:"flex",gap:"8px",alignItems:"center",marginBottom:"6px" }}>
-                                    <button type="button" onClick={()=>{setManualInput(false);setManualAddress("");}} style={{ fontSize:"0.72rem",color:"#2E7DDB",background:"none",border:"none",cursor:"pointer",padding:0,fontFamily:"inherit" }}>
-                                        ← Back to list
-                                    </button>
-                                </div>
-                                <input
-                                    type="text"
-                                    value={manualAddress}
-                                    onChange={e => setManualAddress(e.target.value)}
-                                    placeholder="0x..."
-                                    className="input-field"
-                                    style={{ borderColor: manualAddress && !isAddress(manualAddress) ? "#fca5a5" : undefined, background: manualAddress && !isAddress(manualAddress) ? "#fff1f2" : undefined }}
-                                    autoFocus
-                                />
+                                <button type="button" onClick={() => { setManualInput(false); setManualAddress(""); }}
+                                    style={{ fontSize:"0.72rem",color:"#2E7DDB",background:"none",border:"none",cursor:"pointer",padding:"0 0 6px",fontFamily:"inherit",display:"flex",alignItems:"center",gap:"4px" }}>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                                    Back to list
+                                </button>
+                                <input type="text" value={manualAddress} onChange={e => setManualAddress(e.target.value)} placeholder="0x..." className="input-field" autoFocus
+                                    style={{ borderColor: manualAddress && !isAddress(manualAddress) ? "#fca5a5" : undefined, background: manualAddress && !isAddress(manualAddress) ? "#fff1f2" : undefined }}/>
                                 {manualAddress && !isAddress(manualAddress) && (
-                                    <div style={{ display:"flex",alignItems:"center",gap:"5px",marginTop:"6px" }}>
-                                        <IconAlertCircle size={13} color="#e11d48" />
-                                        <span style={{ fontSize:"0.75rem",color:"#e11d48" }}>Invalid Ethereum address format</span>
+                                    <div style={{ display:"flex",alignItems:"center",gap:"5px",marginTop:"5px" }}>
+                                        <Ico size={12} color="#e11d48" d={<><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></>}/>
+                                        <span style={{ fontSize:"0.72rem",color:"#e11d48" }}>Invalid Ethereum address</span>
                                     </div>
                                 )}
                             </>
                         )}
                     </div>
 
-                    {/* CID Selection — custom multi-select dropdown */}
+                    {/* Record picker */}
                     <div ref={cidDropdownRef} style={{ position:"relative" }}>
-                        <label style={{ display:"block",fontSize:"0.72rem",fontWeight:600,color:"#64748b",marginBottom:"6px",textTransform:"uppercase",letterSpacing:"0.06em" }}>
-                            Select Medical Records
-                        </label>
-
+                        <Label>Medical Records</Label>
                         {cids.length === 0 ? (
-                            <div style={{ padding:"12px 16px",borderRadius:"10px",background:"#f8fafc",border:"1.5px solid #e2e8f0",color:"#94a3b8",fontSize:"0.85rem" }}>
-                                No approved medical records available
-                            </div>
+                            <div style={{ padding:"10px 13px",borderRadius:"10px",background:"#f8fafc",border:"1.5px solid #e2e8f0",color:"#94a3b8",fontSize:"0.82rem" }}>No approved records yet</div>
                         ) : (
                             <>
-                                {/* Dropdown trigger button */}
-                                <button
-                                    type="button"
-                                    onClick={() => setCidDropdownOpen(o => !o)}
-                                    style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",borderRadius:"10px",border:`1.5px solid ${cidDropdownOpen?"#2E7DDB":"#e2e8f0"}`,background:"white",cursor:"pointer",fontFamily:"inherit",transition:"border 0.15s" }}
-                                >
-                                    <span style={{ fontSize:"0.85rem",color: selectedCids.size===0 ? "#94a3b8" : "#0f172a",fontWeight: selectedCids.size > 0 ? 600 : 400 }}>
-                                        {selectedCids.size === 0
-                                            ? "— Select records —"
-                                            : selectedCids.size === cids.length
-                                            ? `All ${cids.length} records selected`
-                                            : `${selectedCids.size} of ${cids.length} records selected`
-                                        }
+                                <button type="button" onClick={() => setCidDropdownOpen(o => !o)}
+                                    style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 13px",borderRadius:"10px",border:`1.5px solid ${cidDropdownOpen?"#2E7DDB":"#e2e8f0"}`,background:"white",cursor:"pointer",fontFamily:"inherit",transition:"border 0.15s" }}>
+                                    <span style={{ fontSize:"0.85rem",color:selectedCids.size===0?"#94a3b8":"#0f172a",fontWeight:selectedCids.size>0?600:400 }}>
+                                        {selectedCids.size===0 ? "— Select records —" : selectedCids.size===cids.length ? `All ${cids.length} records` : `${selectedCids.size} of ${cids.length} records`}
                                     </span>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: cidDropdownOpen?"rotate(180deg)":"none", transition:"transform 0.2s", flexShrink:0 }}>
-                                        <polyline points="6 9 12 15 18 9"/>
-                                    </svg>
+                                    {selectedCids.size > 0 && (
+                                        <span style={{ fontSize:"0.67rem",fontWeight:700,padding:"2px 8px",borderRadius:"8px",background:"#dbeafe",color:"#1e40af",marginRight:"6px" }}>{selectedCids.size}</span>
+                                    )}
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform:cidDropdownOpen?"rotate(180deg)":"none",transition:"transform 0.2s",flexShrink:0 }}><polyline points="6 9 12 15 18 9"/></svg>
                                 </button>
 
-                                {/* Dropdown panel */}
                                 {cidDropdownOpen && (
                                     <div style={{ position:"absolute",top:"calc(100% + 6px)",left:0,right:0,zIndex:100,background:"white",borderRadius:"12px",border:"1.5px solid #e2e8f0",boxShadow:"0 8px 24px rgba(0,0,0,0.12)",overflow:"hidden" }}>
-                                        {/* Select all row */}
-                                        <div style={{ padding:"10px 14px",borderBottom:"1px solid #f1f5f9",display:"flex",alignItems:"center",justifyContent:"space-between" }}>
-                                            <span style={{ fontSize:"0.72rem",fontWeight:600,color:"#64748b" }}>{selectedCids.size} of {cids.length} selected</span>
-                                            <button type="button" onClick={toggleAll} style={{ fontSize:"0.72rem",fontWeight:700,color:"#2E7DDB",background:"none",border:"none",cursor:"pointer",padding:0,fontFamily:"inherit" }}>
-                                                {selectedCids.size === cids.length ? "Deselect All" : "Select All"}
+                                        <div style={{ padding:"9px 14px",borderBottom:"1px solid #f1f5f9",display:"flex",alignItems:"center",justifyContent:"space-between" }}>
+                                            <span style={{ fontSize:"0.7rem",fontWeight:600,color:"#64748b" }}>{selectedCids.size} of {cids.length} selected</span>
+                                            <button type="button" onClick={toggleAll} style={{ fontSize:"0.7rem",fontWeight:700,color:"#2E7DDB",background:"none",border:"none",cursor:"pointer",padding:0,fontFamily:"inherit" }}>
+                                                {selectedCids.size===cids.length?"Deselect All":"Select All"}
                                             </button>
                                         </div>
-                                        {/* Record items */}
-                                        <div style={{ maxHeight:"280px",overflowY:"auto" }}>
+                                        <div style={{ maxHeight:"260px",overflowY:"auto" }}>
                                             {cids.map((cid, i) => {
                                                 const checked = selectedCids.has(cid);
-                                                const detail = cidDetailsMap[cid];
-                                                const isImage = detail?.fileType?.startsWith("image/");
-                                                const isPdf = detail?.fileType === "application/pdf";
+                                                const d = cidDetailsMap[cid];
                                                 return (
-                                                    <div
-                                                        key={i}
-                                                        onClick={() => toggleCid(cid)}
-                                                        style={{ display:"flex",alignItems:"center",gap:"12px",padding:"11px 14px",cursor:"pointer",background:checked?"#f0f7ff":"white",borderBottom:"1px solid #f8fafc",transition:"background 0.1s" }}
+                                                    <div key={i} onClick={() => toggleCid(cid)}
+                                                        style={{ display:"flex",alignItems:"center",gap:"11px",padding:"10px 14px",cursor:"pointer",background:checked?"#f0f7ff":"white",borderBottom:"1px solid #f8fafc",transition:"background 0.1s" }}
                                                         onMouseEnter={e=>{ if(!checked) e.currentTarget.style.background="#f8fafc"; }}
-                                                        onMouseLeave={e=>{ e.currentTarget.style.background=checked?"#f0f7ff":"white"; }}
-                                                    >
-                                                        {/* Checkbox */}
-                                                        <div style={{ width:"17px",height:"17px",borderRadius:"4px",border:`2px solid ${checked?"#2E7DDB":"#cbd5e1"}`,background:checked?"#2E7DDB":"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.12s" }}>
-                                                            {checked && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                                                        onMouseLeave={e=>{ e.currentTarget.style.background=checked?"#f0f7ff":"white"; }}>
+                                                        <div style={{ width:"16px",height:"16px",borderRadius:"4px",border:`2px solid ${checked?"#2E7DDB":"#cbd5e1"}`,background:checked?"#2E7DDB":"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.12s" }}>
+                                                            {checked && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                                                         </div>
-                                                        {/* Icon */}
-                                                        <div style={{ width:"32px",height:"32px",borderRadius:"7px",background:isImage?"#f0f9ff":isPdf?"#fff1f2":"#f8fafc",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
-                                                            {isImage
-                                                                ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2E7DDB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-                                                                : isPdf
-                                                                ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
-                                                                : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
-                                                            }
+                                                        <div style={{ width:"30px",height:"30px",borderRadius:"7px",background:d?.fileType?.startsWith("image/")?"#eff6ff":d?.fileType==="application/pdf"?"#fff1f2":"#f8fafc",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                                                            <FileIcon fileType={d?.fileType}/>
                                                         </div>
-                                                        {/* Info */}
                                                         <div style={{ minWidth:0,flex:1 }}>
-                                                            <div style={{ fontSize:"0.82rem",fontWeight:600,color:checked?"#1e40af":"#334155",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>
-                                                                {detail?.fileName || `Record #${i+1}`}
+                                                            <div style={{ fontSize:"0.8rem",fontWeight:600,color:checked?"#1e40af":"#334155",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>
+                                                                {d?.fileName||`Record #${i+1}`}
                                                             </div>
-                                                            <div style={{ fontSize:"0.67rem",color:"#94a3b8",marginTop:"1px" }}>
-                                                                {detail?.fileType}{detail?.timestamp ? ` · ${new Date(detail.timestamp*1000).toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}` : ""}
+                                                            <div style={{ fontSize:"0.65rem",color:"#94a3b8",marginTop:"1px" }}>
+                                                                {d?.fileType}{d?.timestamp?` · ${new Date(d.timestamp*1000).toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}` : ""}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -382,108 +295,96 @@ export default function AccessManager() {
                             </>
                         )}
                         {selectedCids.size > 0 && (
-                            <p style={{ fontSize:"0.7rem",color:"#64748b",marginTop:"6px" }}>
-                                {selectedCids.size} record{selectedCids.size>1?"s":""} selected — will require {selectedCids.size} blockchain transaction{selectedCids.size>1?"s":""}
+                            <p style={{ fontSize:"0.68rem",color:"#64748b",marginTop:"5px" }}>
+                                {selectedCids.size} record{selectedCids.size>1?"s":""} · {selectedCids.size} blockchain transaction{selectedCids.size>1?"s":""}
                             </p>
                         )}
                     </div>
 
-                    {/* Info note */}
-                    <div style={{ padding:"10px 14px",borderRadius:"10px",background:"#fffbeb",border:"1px solid #fde68a",fontSize:"0.72rem",color:"#92400e",lineHeight:1.5 }}>
-                        <strong>Note:</strong> The doctor will be able to <em>see metadata</em> of all your approved records once access is granted, but can only <em>decrypt</em> the records you select above.
+                    {/* Note */}
+                    <div style={{ display:"flex",gap:"8px",padding:"10px 13px",borderRadius:"10px",background:"#fffbeb",border:"1px solid #fde68a" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0,marginTop:"1px" }}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+                        <span style={{ fontSize:"0.7rem",color:"#92400e",lineHeight:1.5 }}>Doctor can <em>see metadata</em> of all approved records, but can only <em>decrypt</em> the records you select.</span>
                     </div>
 
-                    {/* Submit */}
-                    <button
-                        onClick={handleGrant}
-                        disabled={grantLoading || !effectiveDoctorAddress || selectedCids.size === 0 || !addressValid}
-                        className="btn btn-accent"
-                        style={{
-                            width: "100%", justifyContent: "center",
-                            padding: "11px 22px", fontSize: "0.85rem",
-                        }}
-                    >
-                        {grantLoading
-                            ? <><IconLoader size={15} /> Encrypting & Submitting...</>
-                            : <><IconSend size={15} /> Grant Access{selectedCids.size > 1 ? ` (${selectedCids.size} Records)` : ""}</>
-                        }
-                    </button>
+                    {/* Grant button */}
+                    <div style={{ display:"flex",justifyContent:"flex-end" }}>
+                        <button onClick={handleGrant} disabled={grantLoading || !effectiveDoctorAddress || selectedCids.size===0 || !addressValid} className="btn btn-primary"
+                            style={{ fontSize:"0.85rem",padding:"10px 24px" }}>
+                            {grantLoading
+                                ? <><IconLoader size={14}/> Encrypting...</>
+                                : <><Ico size={14} color="currentColor" d={<><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></>}/> Grant Access{selectedCids.size>1?` (${selectedCids.size})`:""}
+                                </>
+                            }
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            {/* Authorized Doctors — Revoke Section */}
+            {/* ── ACTIVE DOCTORS / REVOKE ─────────────────────── */}
             <div className="glass-card" style={{ padding:"24px" }}>
-                <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"16px",flexWrap:"wrap",gap:"8px" }}>
-                    <h3 className="section-title" style={{ marginBottom:0 }}>Doctors with Active Access</h3>
+                <div style={{ display:"flex",alignItems:"center",gap:"10px",marginBottom:"18px" }}>
+                    <div style={{ width:"34px",height:"34px",borderRadius:"10px",background:"#fff5f5",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                        <Ico size={16} color="#dc2626" d={<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" x2="22" y1="8" y2="13"/><line x1="22" x2="17" y1="8" y2="13"/></>}/>
+                    </div>
+                    <div style={{ flex:1 }}>
+                        <h3 style={{ fontSize:"0.95rem",fontWeight:700,color:"#0f172a",margin:0 }}>Doctors with Active Access</h3>
+                        <p style={{ fontSize:"0.72rem",color:"#94a3b8",margin:0 }}>Click a doctor to select, then revoke</p>
+                    </div>
                     {!loading && doctors.length > 0 && (
-                        <span style={{ fontSize:"0.72rem",fontWeight:700,padding:"3px 10px",borderRadius:"20px",background:"#f0fdf9",color:"#0d9488",border:"1px solid #99f6e4" }}>
+                        <span style={{ fontSize:"0.7rem",fontWeight:700,padding:"3px 10px",borderRadius:"20px",background:"#f0fdf9",color:"#0d9488",border:"1px solid #99f6e4",flexShrink:0 }}>
                             {doctors.length} active
                         </span>
                     )}
                 </div>
 
-                {loading && (
-                    <div style={{ display:"flex",alignItems:"center",gap:"8px",padding:"12px 0" }}>
-                        <IconLoader size={16} />
-                        <span style={{ fontSize:"0.85rem",color:"#64748b" }}>Loading...</span>
+                {loading ? (
+                    <div style={{ display:"flex",alignItems:"center",gap:"8px",padding:"16px 0",color:"#64748b",fontSize:"0.82rem" }}>
+                        <IconLoader size={15}/> Loading...
                     </div>
-                )}
-
-                {!loading && doctors.length === 0 ? (
+                ) : doctors.length === 0 ? (
                     <div style={{ textAlign:"center",padding:"28px 16px" }}>
-                        <div style={{ margin:"0 auto 12px",opacity:0.5 }}>
-                            <IconUsersEmpty size={44} color="#cbd5e1" />
-                        </div>
-                        <p style={{ fontSize:"0.85rem",color:"#94a3b8" }}>No doctors have been granted access yet</p>
+                        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin:"0 auto 10px",display:"block" }}>
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                            <path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                        <p style={{ fontSize:"0.82rem",color:"#94a3b8",margin:0 }}>No doctors have been granted access yet</p>
                     </div>
-                ) : !loading && (
-                    <div style={{ display:"flex",flexDirection:"column",gap:"8px" }}>
-                        {doctors.map((doc) => {
-                            const isSelected = revokeTarget === doc;
+                ) : (
+                    <div style={{ display:"flex",flexDirection:"column",gap:"6px" }}>
+                        {doctors.map(doc => {
+                            const sel = revokeTarget === doc;
                             return (
-                                <div
-                                    key={doc}
-                                    onClick={() => setRevokeTarget(isSelected ? "" : doc)}
-                                    style={{ display:"flex",alignItems:"center",gap:"12px",padding:"12px 14px",borderRadius:"10px",border:`1.5px solid ${isSelected?"#fca5a5":"#e2e8f0"}`,background:isSelected?"#fff5f5":"#f8fafc",cursor:"pointer",transition:"all 0.15s",userSelect:"none" }}
-                                >
-                                    <div style={{ width:"34px",height:"34px",borderRadius:"9px",background:isSelected?"#fee2e2":"#f0fdf9",border:`1px solid ${isSelected?"#fca5a5":"#99f6e4"}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.15s" }}>
-                                        <IconStethoscope size={16} color={isSelected?"#dc2626":"#0d9488"} />
+                                <div key={doc} onClick={() => setRevokeTarget(sel ? "" : doc)}
+                                    style={{ display:"flex",alignItems:"center",gap:"12px",padding:"11px 14px",borderRadius:"10px",border:`1.5px solid ${sel?"#fca5a5":"#e2e8f0"}`,background:sel?"#fff5f5":"#f8fafc",cursor:"pointer",transition:"all 0.15s",userSelect:"none" }}>
+                                    <div style={{ width:"32px",height:"32px",borderRadius:"8px",background:sel?"#fee2e2":"#f0fdf9",border:`1px solid ${sel?"#fca5a5":"#99f6e4"}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.15s" }}>
+                                        <Ico size={15} color={sel?"#dc2626":"#0d9488"} d={<><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6 6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></>}/>
                                     </div>
                                     <div style={{ flex:1,minWidth:0 }}>
-                                        <div className="mono" style={{ fontSize:"0.8rem",fontWeight:600,color:isSelected?"#dc2626":"#334155" }}>{shortenAddr(doc)}</div>
-                                        <div className="mono" style={{ fontSize:"0.65rem",color:"#94a3b8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:"1px" }}>{doc}</div>
+                                        <div style={{ fontSize:"0.8rem",fontWeight:600,color:sel?"#dc2626":"#334155",fontFamily:"monospace" }}>{short(doc)}</div>
+                                        <div style={{ fontSize:"0.63rem",color:"#94a3b8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontFamily:"monospace",marginTop:"1px" }}>{doc}</div>
                                     </div>
-                                    <div style={{ flexShrink:0,display:"flex",alignItems:"center",gap:"6px" }}>
-                                        {isSelected ? (
-                                            <span style={{ fontSize:"0.67rem",fontWeight:700,padding:"2px 8px",borderRadius:"8px",background:"#fee2e2",color:"#dc2626",border:"1px solid #fca5a5" }}>Selected</span>
-                                        ) : (
-                                            <span style={{ fontSize:"0.67rem",fontWeight:700,padding:"2px 8px",borderRadius:"8px",background:"#f0fdf4",color:"#16a34a",border:"1px solid #bbf7d0" }}>Active</span>
-                                        )}
-                                    </div>
+                                    <span style={{ fontSize:"0.65rem",fontWeight:700,padding:"2px 8px",borderRadius:"7px",background:sel?"#fee2e2":"#f0fdf4",color:sel?"#dc2626":"#16a34a",border:`1px solid ${sel?"#fca5a5":"#bbf7d0"}`,flexShrink:0 }}>
+                                        {sel?"Selected":"Active"}
+                                    </span>
                                 </div>
                             );
                         })}
 
-                        {/* Revoke button — shown when a doctor is selected */}
-                        <div style={{ marginTop:"4px",padding:"14px 16px",borderRadius:"12px",background: revokeTarget?"#fff5f5":"#f8fafc",border:`1px solid ${revokeTarget?"#fecaca":"#e2e8f0"}`,transition:"all 0.2s" }}>
+                        {/* Revoke action panel */}
+                        <div style={{ marginTop:"6px",padding:"13px 16px",borderRadius:"10px",border:`1.5px solid ${revokeTarget?"#fecaca":"#f1f5f9"}`,background:revokeTarget?"#fff5f5":"#f8fafc",transition:"all 0.2s",minHeight:"52px",display:"flex",alignItems:"center" }}>
                             {revokeTarget ? (
-                                <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",gap:"12px",flexWrap:"wrap" }}>
+                                <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",gap:"12px",width:"100%",flexWrap:"wrap" }}>
                                     <div>
-                                        <div style={{ fontSize:"0.72rem",fontWeight:600,color:"#dc2626",marginBottom:"2px" }}>Revoke access for:</div>
-                                        <div className="mono" style={{ fontSize:"0.75rem",color:"#7f1d1d",fontWeight:500 }}>{shortenAddr(revokeTarget)}</div>
+                                        <div style={{ fontSize:"0.68rem",fontWeight:700,color:"#dc2626",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:"2px" }}>Revoke access for</div>
+                                        <div style={{ fontSize:"0.78rem",color:"#7f1d1d",fontWeight:600,fontFamily:"monospace" }}>{short(revokeTarget)}</div>
                                     </div>
-                                    <button
-                                        onClick={() => handleRevoke(revokeTarget)}
-                                        className="btn btn-danger"
-                                        style={{ fontSize:"0.82rem",padding:"8px 20px",flexShrink:0 }}
-                                    >
-                                        <IconUserX size={14} color="white" /> Revoke Access
+                                    <button onClick={() => handleRevoke(revokeTarget)} className="btn btn-danger" style={{ fontSize:"0.8rem",padding:"8px 18px",flexShrink:0 }}>
+                                        <Ico size={13} color="white" d={<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" x2="22" y1="8" y2="13"/><line x1="22" x2="17" y1="8" y2="13"/></>}/> Revoke Access
                                     </button>
                                 </div>
                             ) : (
-                                <p style={{ fontSize:"0.75rem",color:"#94a3b8",margin:0,textAlign:"center" }}>
-                                    Click a doctor above to select, then revoke their access
-                                </p>
+                                <p style={{ fontSize:"0.75rem",color:"#94a3b8",margin:0,textAlign:"center",width:"100%" }}>Select a doctor above to revoke their access</p>
                             )}
                         </div>
                     </div>
