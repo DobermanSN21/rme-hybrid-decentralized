@@ -285,10 +285,10 @@ export default function DoctorDashboard() {
                 <div className="max-w-2xl mx-auto">
                     <h2 className="section-title">Upload Patient Medical Record</h2>
 
-                    <div className="glass-card">
+                    <div className="glass-card" style={{ padding:"28px" }}>
                         {/* Patient Address */}
-                        <div style={{ marginBottom:"16px" }}>
-                            <label style={{ display:"block",fontSize:"0.72rem",fontWeight:600,color:"#64748b",marginBottom:"6px",textTransform:"uppercase",letterSpacing:"0.06em" }}>Patient Wallet Address</label>
+                        <div style={{ marginBottom:"20px" }}>
+                            <label style={{ display:"block",fontSize:"0.72rem",fontWeight:600,color:"#64748b",marginBottom:"8px",textTransform:"uppercase",letterSpacing:"0.06em" }}>Patient Wallet Address</label>
                             <input
                                 type="text"
                                 value={patientAddress}
@@ -306,8 +306,8 @@ export default function DoctorDashboard() {
                         </div>
 
                         {/* File Picker */}
-                        <div style={{ marginBottom:"16px" }}>
-                            <label style={{ display:"block",fontSize:"0.72rem",fontWeight:600,color:"#64748b",marginBottom:"6px",textTransform:"uppercase",letterSpacing:"0.06em" }}>Medical Record File</label>
+                        <div style={{ marginBottom:"20px" }}>
+                            <label style={{ display:"block",fontSize:"0.72rem",fontWeight:600,color:"#64748b",marginBottom:"8px",textTransform:"uppercase",letterSpacing:"0.06em" }}>Medical Record File</label>
                             
                             {/* File Picker — hidden when file is selected */}
                             {!filePreview && (
@@ -356,8 +356,8 @@ export default function DoctorDashboard() {
                         </div>
 
                         {/* Encryption Info */}
-                        <div style={{ padding:"12px 14px",borderRadius:"10px",background:"#f0f7ff",border:"1px solid #bfdbfe",marginBottom:"16px" }}>
-                            <p style={{ fontSize:"0.75rem",color:"#475569",lineHeight:"1.5" }}>
+                        <div style={{ padding:"14px 16px",borderRadius:"12px",background:"#f0f7ff",border:"1px solid #bfdbfe",marginBottom:"20px" }}>
+                            <p style={{ fontSize:"0.75rem",color:"#475569",lineHeight:"1.6",margin:0 }}>
                                 <strong style={{ color:"#2E7DDB" }}>Encryption flow:</strong>{" "}
                                 File → SHA-256(hash) → AES-256-CBC → Pinata (IPFS) → AES Key → ECIES(ECC PubKey Patient) → Blockchain
                             </p>
@@ -365,26 +365,28 @@ export default function DoctorDashboard() {
 
                         {/* Upload Progress Steps */}
                         {uploadStep && (
-                            <div className="mb-4 p-3 rounded-lg bg-surface-50 border border-primary-200">
+                            <div style={{ padding:"16px",borderRadius:"12px",background:"#f8fafc",border:"1px solid #e2e8f0",marginBottom:"16px" }}>
                                 {UPLOAD_STEPS.map((step, i) => (
-                                    <div key={step.key} style={{ display:"flex",alignItems:"center",gap:"8px",padding:"4px 0" }}>
-                                        <span style={{ width:"18px",height:"18px",display:"flex",alignItems:"center",justifyContent:"center" }}>
+                                    <div key={step.key} style={{ display:"flex",alignItems:"center",gap:"10px",padding:"6px 0" }}>
+                                        <span style={{ width:"20px",height:"20px",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
                                             {i < currentStepIndex || (i === currentStepIndex && uploadStep === "done")
-                                                ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                                ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                                 : i === currentStepIndex
-                                                    ? <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2E7DDB" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                                                    : <span style={{ width:"8px",height:"8px",borderRadius:"50%",background:"#e2e8f0",display:"block" }}/>}
+                                                    ? <svg className="animate-spin" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2E7DDB" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                                                    : <span style={{ width:"8px",height:"8px",borderRadius:"50%",background:"#e2e8f0",display:"block",margin:"0 auto" }}/>}
                                         </span>
-                                        <span style={{ fontSize:"0.78rem",fontWeight: i <= currentStepIndex ? 500 : 400, color: i <= currentStepIndex ? "#0f172a" : "#94a3b8" }}>
+                                        <span style={{ fontSize:"0.8rem",fontWeight: i <= currentStepIndex ? 500 : 400, color: i <= currentStepIndex ? "#0f172a" : "#94a3b8" }}>
                                             {step.label}
                                         </span>
                                     </div>
                                 ))}
                                 {/* Progress bar */}
-                                <div className="w-full bg-surface-200 rounded-full h-1.5 mt-2 overflow-hidden">
+                                <div style={{ width:"100%",background:"#e2e8f0",borderRadius:"99px",height:"6px",marginTop:"12px",overflow:"hidden" }}>
                                     <div
-                                        className="h-full rounded-full transition-all duration-500"
                                         style={{
+                                            height:"100%",
+                                            borderRadius:"99px",
+                                            transition:"width 0.5s ease",
                                             width: `${((currentStepIndex + 1) / UPLOAD_STEPS.length) * 100}%`,
                                             background: "linear-gradient(90deg, #2E7DDB, #14b8a6)",
                                         }}
@@ -398,7 +400,7 @@ export default function DoctorDashboard() {
                             onClick={handleUpload}
                             disabled={uploadLoading || !selectedFile || !patientAddress}
                             className="btn btn-accent"
-                            style={{ width:"100%",justifyContent:"center",padding:"11px 22px",fontSize:"0.85rem" }}
+                            style={{ width:"100%",justifyContent:"center",padding:"13px 22px",fontSize:"0.88rem" }}
                         >
                             {uploadLoading
                                 ? <><svg className="animate-spin" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Processing...</>
