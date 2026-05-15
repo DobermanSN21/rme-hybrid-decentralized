@@ -59,6 +59,7 @@ export default function DoctorDashboard() {
     const [searchAddress, setSearchAddress] = useState("");
     const [records, setRecords] = useState([]);
     const [decryptedMap, setDecryptedMap] = useState({});
+    const [keyStatusMap, setKeyStatusMap] = useState({}); // cid -> true/false (has encrypted key)
     const [searchLoading, setSearchLoading] = useState(false);
 
     // Submissions tab
@@ -215,12 +216,26 @@ export default function DoctorDashboard() {
         setSearchLoading(true);
         setError(null);
         setDecryptedMap({});
+        setKeyStatusMap({});
         try {
             const recs = await getPatientRecords(account.signer, searchAddress);
             setRecords(recs);
             if (recs.length === 0) {
                 setError("No medical records found or you do not have access to this patient.");
+                return;
             }
+            // Silently check which CIDs have an encrypted key for this doctor
+            const statusEntries = await Promise.all(
+                recs.map(async (r) => {
+                    try {
+                        await getEncryptedKey(account.signer, r.cid);
+                        return [r.cid, true];
+                    } catch {
+                        return [r.cid, false];
+                    }
+                })
+            );
+            setKeyStatusMap(Object.fromEntries(statusEntries));
         } catch (err) {
             setRecords([]);
             setError(err.reason || err.message || "Failed to retrieve medical records.");
@@ -625,6 +640,7 @@ export default function DoctorDashboard() {
                                         record={rec}
                                         onDecrypt={() => handleDecrypt(rec.cid, rec.fileType)}
                                         decryptedData={decryptedMap[rec.cid]}
+                                        keyAvailable={keyStatusMap[rec.cid]}
                                     />
                                 ))}
                             </div>

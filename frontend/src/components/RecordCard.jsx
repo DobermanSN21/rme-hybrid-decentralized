@@ -66,7 +66,13 @@ const IconLoader = ({ size = 14 }) => (
     </svg>
 );
 
-export default function RecordCard({ record, onDecrypt, decryptedData }) {
+const IconLockClosed = ({ size = 16, color = "#d97706" }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </svg>
+);
+
+export default function RecordCard({ record, onDecrypt, decryptedData, keyAvailable }) {
     const [expanded, setExpanded] = useState(false);
     const [decrypting, setDecrypting] = useState(false);
 
@@ -108,7 +114,17 @@ export default function RecordCard({ record, onDecrypt, decryptedData }) {
     };
 
     return (
-        <div className="glass-card animate-fade-in" style={{ padding: "22px" }}>
+        <div className="glass-card animate-fade-in" style={{ padding: "22px", borderLeft: keyAvailable === false ? "3px solid #fde68a" : undefined }}>
+            {/* No-key warning banner */}
+            {keyAvailable === false && (
+                <div style={{ display:"flex",alignItems:"center",gap:"10px",padding:"10px 14px",borderRadius:"10px",background:"#fffbeb",border:"1px solid #fde68a",marginBottom:"14px" }}>
+                    <IconLockClosed size={16} color="#d97706" />
+                    <div style={{ flex:1 }}>
+                        <div style={{ fontSize:"0.75rem",fontWeight:700,color:"#b45309" }}>Decryption key not available</div>
+                        <div style={{ fontSize:"0.7rem",color:"#92400e",marginTop:"1px" }}>Ask the patient to grant access for this record via their <strong>Manage Access</strong> tab.</div>
+                    </div>
+                </div>
+            )}
             {/* Header */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "14px", flexWrap: "wrap" }}>
                 <div style={{ flex: 1, minWidth: "200px" }}>
@@ -148,10 +164,14 @@ export default function RecordCard({ record, onDecrypt, decryptedData }) {
 
                 {/* Action buttons */}
                 <div style={{ display: "flex", gap: "8px", flexShrink: 0, alignItems: "flex-start" }}>
-                    {!decryptedData && onDecrypt && (
+                    {!decryptedData && onDecrypt && keyAvailable === false ? (
+                        <div style={{ display:"flex",alignItems:"center",gap:"6px",padding:"7px 14px",borderRadius:"9px",background:"#fffbeb",border:"1.5px solid #fde68a",fontSize:"0.75rem",fontWeight:600,color:"#b45309",whiteSpace:"nowrap" }}>
+                            <IconLockClosed size={13} color="#b45309" /> No Key
+                        </div>
+                    ) : !decryptedData && onDecrypt && (
                         <button
                             onClick={handleDecrypt}
-                            disabled={decrypting}
+                            disabled={decrypting || keyAvailable === false}
                             className="btn btn-primary"
                             style={{ fontSize: "0.78rem", padding: "8px 16px" }}
                         >
