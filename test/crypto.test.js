@@ -362,7 +362,7 @@ describe("Crypto Library", function () {
         });
 
         it("should throw error for unknown CID", function () {
-            expect(() => simulateDownload("QmUnknownCID123")).to.throw("CID not found");
+            expect(() => simulateDownload("QmUnknownCID123")).to.throw("QmUnknownCID123");
         });
     });
 });

@@ -5,8 +5,8 @@
 
 import { useWallet } from "../context/WalletContext";
 
-const CHAIN_NAME = import.meta.env.VITE_CHAIN_NAME || "Hardhat Local";
-const CHAIN_ID = import.meta.env.VITE_CHAIN_ID || "31337";
+const CHAIN_NAME = import.meta.env.VITE_CHAIN_NAME || "Sepolia Testnet";
+const CHAIN_ID = import.meta.env.VITE_CHAIN_ID || "11155111";
 const DAPP_URL = typeof window !== "undefined" ? window.location.host : "";
 
 function isMobileDevice() {

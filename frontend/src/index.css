@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 /* ============================================================
@@ -6,8 +7,6 @@
    Palette: Clean white + soft blue + medical teal + mint green
    Feel: Clinical, trustworthy, modern hospital system
    ============================================================ */
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 @theme {
   /* Medical blue — primary brand color */
@@ -344,6 +343,26 @@ label {
 }
 
 /* ============================================================
+   Role Selection Cards
+   ============================================================ */
+.role-select-card:hover {
+  border-color: #94a3b8 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  transform: translateY(-2px);
+}
+
+/* ============================================================
+   Spin Animation
+   ============================================================ */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 0.8s linear infinite;
+}
+
+/* ============================================================
    Scrollbar
    ============================================================ */
 ::-webkit-scrollbar {
@@ -411,7 +430,7 @@ label {
   font-size: 1.15rem;
   font-weight: 700;
   color: #1e293b;
-  margin-bottom: 18px;
+  margin-bottom: 22px;
   display: flex;
   align-items: center;
   gap: 10px;

@@ -168,10 +168,10 @@ export default function LandingPage() {
 
                 {/* Step 2: Register */}
                 {isConnected && CONTRACT_CONFIGURED && !isRegistered && (
-                    <div className="w-full max-w-lg mt-4">
-                        <div className="flex items-center gap-2 mb-5 justify-center animate-fade-in">
-                            <span className="w-2.5 h-2.5 rounded-full bg-success-500 animate-pulse" />
-                            <span className="text-success-500 text-xs font-semibold">Wallet Connected</span>
+                    <div className="w-full max-w-lg" style={{ marginTop: "8px" }}>
+                        <div className="animate-fade-in" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginBottom: "24px", padding: "8px 18px", borderRadius: "24px", background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", width: "fit-content", margin: "0 auto 24px" }}>
+                            <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#22c55e", display: "block", animation: "pulse 2s ease-in-out infinite" }} />
+                            <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "#16a34a" }}>Wallet Connected</span>
                         </div>
                         <RegisterForm />
                     </div>

@@ -39,14 +39,15 @@ export function WalletProvider({ children }) {
             // Check if already registered
             try {
                 const r = await getRole(acc.signer, acc.address);
+                console.log(`[RME] Role for ${acc.address}: ${r} (${r === 1 ? "PATIENT" : r === 2 ? "DOCTOR" : "NONE"})`);
                 setRole(r);
-            } catch {
+            } catch (roleErr) {
+                console.warn("[RME] Failed to get role:", roleErr.message);
                 setRole(ROLES.NONE);
             }
 
-            // Load ECC private key from sessionStorage if available
-            const storedKey = sessionStorage.getItem(`ecc_privkey_${acc.address}`);
-            if (storedKey) setPrivateKey(storedKey);
+            // Private key is kept in-memory only (not persisted)
+            // User must re-import after page refresh for security
 
             return acc;
         } catch (err) {
@@ -65,15 +66,12 @@ export function WalletProvider({ children }) {
         setError(null);
     }, []);
 
-    // Save ECC private key (session only - not persistent)
+    // Save ECC private key (in-memory only — never persisted to storage)
     const savePrivateKey = useCallback(
         (key) => {
             setPrivateKey(key);
-            if (account?.address) {
-                sessionStorage.setItem(`ecc_privkey_${account.address}`, key);
-            }
         },
-        [account]
+        []
     );
 
     // Refresh role from blockchain
@@ -90,11 +88,18 @@ export function WalletProvider({ children }) {
     // Listen for MetaMask account changes
     useEffect(() => {
         if (!window.ethereum) return;
-        const handleAccountsChanged = (accounts) => {
+        const handleAccountsChanged = async (accounts) => {
             if (accounts.length === 0) {
                 disconnect();
             } else {
-                connect();
+                // Clear private key when switching accounts (it belongs to the previous account)
+                setPrivateKey(null);
+                // Re-connect with the new account
+                try {
+                    await connect();
+                } catch (err) {
+                    console.error("[RME] Failed to reconnect on account switch:", err);
+                }
             }
         };
         window.ethereum.on("accountsChanged", handleAccountsChanged);
@@ -111,6 +116,7 @@ export function WalletProvider({ children }) {
         disconnect,
         savePrivateKey,
         refreshRole,
+        setRole,
         setError,
         isConnected: !!account,
         isPatient: role === ROLES.PATIENT,
