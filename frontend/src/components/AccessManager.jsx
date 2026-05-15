@@ -76,7 +76,8 @@ export default function AccessManager() {
     const [doctorAddress, setDoctorAddress] = useState("");
     const [manualInput, setManualInput] = useState(false);
     const [manualAddress, setManualAddress] = useState("");
-    const [knownDoctors, setKnownDoctors] = useState([]); // from patient's records
+    const [knownDoctors, setKnownDoctors] = useState([]);
+    const [cidDetailsMap, setCidDetailsMap] = useState({}); // cid -> { fileName, fileType, doctorAddress, timestamp }
     const [selectedCids, setSelectedCids] = useState(new Set());
     const [cids, setCids] = useState([]);
     const [doctors, setDoctors] = useState([]);
@@ -112,6 +113,13 @@ export default function AccessManager() {
                 ...pendingRecs.map(r => r.doctorAddress),
             ].filter(Boolean))];
             setKnownDoctors(allDoctors);
+
+            // Build CID → record detail map for display
+            const detailMap = {};
+            for (const r of approvedRecs) {
+                if (r.cid) detailMap[r.cid] = { fileName: r.fileName, fileType: r.fileType, doctorAddress: r.doctorAddress, timestamp: r.timestamp };
+            }
+            setCidDetailsMap(detailMap);
         } catch (err) {
             console.error(err);
         } finally {
@@ -294,13 +302,16 @@ export default function AccessManager() {
                             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                                 {cids.map((cid, i) => {
                                     const checked = selectedCids.has(cid);
+                                    const detail = cidDetailsMap[cid];
+                                    const isImage = detail?.fileType?.startsWith("image/");
+                                    const isPdf = detail?.fileType === "application/pdf";
                                     return (
                                         <button
                                             key={i}
                                             type="button"
                                             onClick={() => toggleCid(cid)}
                                             style={{
-                                                display: "flex", alignItems: "center", gap: "10px",
+                                                display: "flex", alignItems: "center", gap: "12px",
                                                 padding: "12px 14px", borderRadius: "10px",
                                                 border: checked ? "2px solid #2E7DDB" : "1.5px solid #e2e8f0",
                                                 background: checked ? "#eef5ff" : "white",
@@ -308,15 +319,34 @@ export default function AccessManager() {
                                                 textAlign: "left", width: "100%",
                                             }}
                                         >
-                                            {/* Checkbox visual */}
+                                            {/* Checkbox */}
                                             <div style={{ width:"18px",height:"18px",borderRadius:"5px",border:`2px solid ${checked?"#2E7DDB":"#cbd5e1"}`,background:checked?"#2E7DDB":"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.15s" }}>
                                                 {checked && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                                             </div>
+                                            {/* File type icon */}
+                                            <div style={{ width:"34px",height:"34px",borderRadius:"8px",background:checked?(isImage?"#dbeafe":isPdf?"#fee2e2":"#dbeafe"):(isImage?"#f0f9ff":isPdf?"#fff1f2":"#f8fafc"),display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                                                {isImage
+                                                    ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={checked?"#2E7DDB":"#94a3b8"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                                                    : isPdf
+                                                    ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={checked?"#e11d48":"#94a3b8"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
+                                                    : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={checked?"#2E7DDB":"#94a3b8"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
+                                                }
+                                            </div>
                                             <div style={{ minWidth: 0, flex: 1 }}>
-                                                <div style={{ fontSize: "0.72rem", fontWeight: 600, color: checked ? "#2E7DDB" : "#64748b", marginBottom: "2px" }}>
-                                                    Record #{i + 1}
+                                                <div style={{ fontSize: "0.82rem", fontWeight: 600, color: checked ? "#1e40af" : "#334155", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                                                    {detail?.fileName || `Record #${i + 1}`}
                                                 </div>
-                                                <div className="mono" style={{ fontSize: "0.7rem", color: checked ? "#1e40af" : "#94a3b8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={cid}>
+                                                <div style={{ display:"flex", gap:"8px", marginTop:"2px", flexWrap:"wrap" }}>
+                                                    {detail?.fileType && (
+                                                        <span style={{ fontSize:"0.67rem", color: checked ? "#2E7DDB" : "#94a3b8" }}>{detail.fileType}</span>
+                                                    )}
+                                                    {detail?.timestamp && (
+                                                        <span style={{ fontSize:"0.67rem", color:"#94a3b8" }}>
+                                                            {new Date(detail.timestamp * 1000).toLocaleDateString("en-US", { day:"numeric", month:"short", year:"numeric" })}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="mono" style={{ fontSize:"0.65rem", color: checked ? "#93c5fd" : "#cbd5e1", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", marginTop:"2px" }} title={cid}>
                                                     {cid}
                                                 </div>
                                             </div>
