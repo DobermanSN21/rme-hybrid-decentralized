@@ -161,9 +161,15 @@ export default function PatientDashboard() {
     const handleApprove = (rec) => {
         setConfirmDialog({
             title: "Approve Medical Record",
-            message: `Are you sure you want to approve the medical record "${rec.fileName || "Unknown"}"? This action will store it permanently on the blockchain.`,
+            message: "Approving will permanently store this record on the blockchain and grant the doctor access to decrypt it.",
             confirmLabel: "Approve",
             variant: "primary",
+            details: [
+                { label: "File", value: rec.fileName || "Unknown" },
+                { label: "Type", value: rec.fileType },
+                { label: "Doctor", value: rec.doctorAddress, mono: true },
+                { label: "CID", value: rec.cid, mono: true },
+            ],
             onConfirm: async () => {
                 setConfirmDialog(null);
                 setActionLoading(rec.recordIndex);
@@ -201,9 +207,12 @@ export default function PatientDashboard() {
     const handleReject = (recordIndex, fileName) => {
         setConfirmDialog({
             title: "Reject Medical Record",
-            message: `Are you sure you want to reject "${fileName || "Unknown"}"? This action cannot be undone.`,
+            message: "This record will be permanently rejected and cannot be approved later. The doctor will need to re-upload if needed.",
             confirmLabel: "Reject",
             variant: "danger",
+            details: [
+                { label: "File", value: fileName || "Unknown" },
+            ],
             onConfirm: async () => {
                 setConfirmDialog(null);
                 setActionLoading(recordIndex);
@@ -289,6 +298,7 @@ export default function PatientDashboard() {
                 isOpen={!!confirmDialog}
                 title={confirmDialog?.title || ""}
                 message={confirmDialog?.message || ""}
+                details={confirmDialog?.details}
                 confirmLabel={confirmDialog?.confirmLabel}
                 variant={confirmDialog?.variant}
                 onConfirm={confirmDialog?.onConfirm || (() => {})}
