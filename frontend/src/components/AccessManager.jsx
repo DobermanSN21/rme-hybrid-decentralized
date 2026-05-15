@@ -246,12 +246,9 @@ export default function AccessManager() {
                             <>
                                 <button type="button" onClick={() => setCidDropdownOpen(o => !o)}
                                     style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 13px",borderRadius:"10px",border:`1.5px solid ${cidDropdownOpen?"#2E7DDB":"#e2e8f0"}`,background:"white",cursor:"pointer",fontFamily:"inherit",transition:"border 0.15s" }}>
-                                    <span style={{ fontSize:"0.85rem",color:selectedCids.size===0?"#94a3b8":"#0f172a",fontWeight:selectedCids.size>0?600:400 }}>
+                                    <span style={{ fontSize:"0.85rem",color:selectedCids.size===0?"#94a3b8":"#0f172a",fontWeight:selectedCids.size>0?600:400,flex:1 }}>
                                         {selectedCids.size===0 ? "— Select records —" : selectedCids.size===cids.length ? `All ${cids.length} records` : `${selectedCids.size} of ${cids.length} records`}
                                     </span>
-                                    {selectedCids.size > 0 && (
-                                        <span style={{ fontSize:"0.67rem",fontWeight:700,padding:"2px 8px",borderRadius:"8px",background:"#dbeafe",color:"#1e40af",marginRight:"6px" }}>{selectedCids.size}</span>
-                                    )}
                                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform:cidDropdownOpen?"rotate(180deg)":"none",transition:"transform 0.2s",flexShrink:0 }}><polyline points="6 9 12 15 18 9"/></svg>
                                 </button>
 
