@@ -1,69 +1,40 @@
 // services/blockchain.js
-// ============================================================
-// Ethereum Smart Contract Interaction via ethers.js v6
-// ============================================================
-
 import { BrowserProvider, Contract } from "ethers";
 import ContractArtifact from "../contracts/MedicalRecordVault.json";
 
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS;
 
 if (!CONTRACT_ADDRESS) {
-    console.warn(
-        "⚠️ VITE_CONTRACT_ADDRESS not configured!\n" +
-        "Langkah setup:\n" +
-        "  1. npx hardhat run scripts/deploy.js --network <network>\n" +
-        "  2. Deploy script akan otomatis membuat frontend/.env\n" +
-        "  3. Restart dev server: npm run dev\n" +
-        "  4. Untuk Vercel: set VITE_CONTRACT_ADDRESS di Vercel dashboard"
-    );
+    console.warn("⚠️ VITE_CONTRACT_ADDRESS not configured!");
 }
 
 const ABI = ContractArtifact.abi;
 
-// ============================================================
-// Wallet Connection
-// ============================================================
+// ── Wallet Connection ────────────────────────────────────────────────
 
-// Sepolia testnet chain ID = 11155111 (0xaa36a7)
 const TARGET_CHAIN_ID = "0xaa36a7";
 const TARGET_CHAIN_NAME = "Sepolia";
 
 export async function connectWallet() {
     if (!window.ethereum) {
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-        if (isMobile) {
-            throw new Error(
-                "MetaMask not detected. Please open this page inside the MetaMask app browser."
-            );
-        }
-        throw new Error(
-            "MetaMask not detected. Please install the MetaMask browser extension."
+        throw new Error(isMobile
+            ? "MetaMask not detected. Please open this page inside the MetaMask app browser."
+            : "MetaMask not detected. Please install the MetaMask browser extension."
         );
     }
 
     await window.ethereum.request({ method: "eth_requestAccounts" });
 
-    // Switch to Sepolia if not already on it
     const chainId = await window.ethereum.request({ method: "eth_chainId" });
     if (chainId !== TARGET_CHAIN_ID) {
         try {
-            await window.ethereum.request({
-                method: "wallet_switchEthereumChain",
-                params: [{ chainId: TARGET_CHAIN_ID }],
-            });
+            await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: TARGET_CHAIN_ID }] });
         } catch (switchErr) {
-            // Chain not added in MetaMask yet — add it
             if (switchErr.code === 4902) {
                 await window.ethereum.request({
                     method: "wallet_addEthereumChain",
-                    params: [{
-                        chainId: TARGET_CHAIN_ID,
-                        chainName: "Sepolia Testnet",
-                        nativeCurrency: { name: "SepoliaETH", symbol: "ETH", decimals: 18 },
-                        rpcUrls: ["https://rpc.sepolia.org"],
-                        blockExplorerUrls: ["https://sepolia.etherscan.io"],
-                    }],
+                    params: [{ chainId: TARGET_CHAIN_ID, chainName: "Sepolia Testnet", nativeCurrency: { name: "SepoliaETH", symbol: "ETH", decimals: 18 }, rpcUrls: ["https://rpc.sepolia.org"], blockExplorerUrls: ["https://sepolia.etherscan.io"] }],
                 });
             } else {
                 throw new Error(`Please switch MetaMask to ${TARGET_CHAIN_NAME} network manually.`);
@@ -74,7 +45,6 @@ export async function connectWallet() {
     const provider = new BrowserProvider(window.ethereum);
     const signer = await provider.getSigner();
     const address = await signer.getAddress();
-
     return { provider, signer, address };
 }
 
@@ -87,50 +57,82 @@ export async function getCurrentAccount() {
     return { provider, signer, address: accounts[0] };
 }
 
-// ============================================================
-// Contract Instance
-// ============================================================
+// ── Contract Instance ────────────────────────────────────────────────
 
 function getContract(signer) {
-    if (!CONTRACT_ADDRESS) {
-        throw new Error(
-            "Contract address not configured.\n\n" +
-            "Langkah setup:\n" +
-            "1. Jalankan: npx hardhat node\n" +
-            "2. Jalankan: npx hardhat run scripts/deploy.js --network localhost\n" +
-            "3. Restart frontend: npm run dev\n\n" +
-            "Deploy script akan otomatis membuat file .env."
-        );
-    }
+    if (!CONTRACT_ADDRESS) throw new Error("Contract address not configured. Run deploy script first.");
     return new Contract(CONTRACT_ADDRESS, ABI, signer);
 }
 
-// ============================================================
-// Registration
-// ============================================================
+// ── Admin ────────────────────────────────────────────────────────────
 
-export async function registerAsPatient(signer, publicKey) {
+export async function getContractOwner(signer) {
     const contract = getContract(signer);
-    const tx = await contract.registerAsPatient(publicKey);
+    return contract.owner();
+}
+
+export async function getPendingDoctorRequests(signer) {
+    const contract = getContract(signer);
+    const reqs = await contract.getPendingDoctorRequests();
+    return reqs.map(r => ({
+        addr: r.addr,
+        name: r.name,
+        licenseNumber: r.licenseNumber,
+        specialization: r.specialization,
+        hospital: r.hospital,
+        requestedAt: Number(r.requestedAt),
+    }));
+}
+
+export async function getApprovedDoctors(signer) {
+    const contract = getContract(signer);
+    const docs = await contract.getApprovedDoctors();
+    return docs.map(r => ({
+        addr: r.addr,
+        name: r.name,
+        licenseNumber: r.licenseNumber,
+        specialization: r.specialization,
+        hospital: r.hospital,
+        requestedAt: Number(r.requestedAt),
+    }));
+}
+
+export async function approveDoctor(signer, doctorAddress) {
+    const contract = getContract(signer);
+    const tx = await contract.approveDoctor(doctorAddress);
     await tx.wait();
     return tx;
 }
 
-export async function registerAsDoctor(signer, publicKey) {
+export async function rejectDoctor(signer, doctorAddress, reason) {
     const contract = getContract(signer);
-    const tx = await contract.registerAsDoctor(publicKey);
+    const tx = await contract.rejectDoctor(doctorAddress, reason || "");
     await tx.wait();
     return tx;
 }
 
-// ============================================================
-// Role & Public Key Queries
-// ============================================================
+// ── Registration ─────────────────────────────────────────────────────
+
+export async function registerAsPatient(signer, name, publicKey) {
+    const contract = getContract(signer);
+    const tx = await contract.registerAsPatient(name, publicKey);
+    await tx.wait();
+    return tx;
+}
+
+export async function requestDoctorVerification(signer, name, licenseNumber, specialization, hospital, publicKey) {
+    const contract = getContract(signer);
+    const tx = await contract.requestDoctorVerification(name, licenseNumber, specialization, hospital, publicKey);
+    await tx.wait();
+    return tx;
+}
+
+// ── Role & Profile Queries ───────────────────────────────────────────
 
 export async function getRole(signer, address) {
     const contract = getContract(signer);
     const role = await contract.getRole(address);
-    return Number(role); // 0=NONE, 1=PATIENT, 2=DOCTOR
+    return Number(role);
 }
 
 export async function getPublicKey(signer, address) {
@@ -138,9 +140,42 @@ export async function getPublicKey(signer, address) {
     return contract.getPublicKey(address);
 }
 
-// ============================================================
-// Record Submission (Doctor → Patient, PENDING)
-// ============================================================
+export async function getDoctorRequest(signer, address) {
+    const contract = getContract(signer);
+    const r = await contract.getDoctorRequest(address);
+    return {
+        isPending: r[0],
+        isApproved: r[1],
+        isRejected: r[2],
+        rejectReason: r[3],
+        name: r[4],
+        licenseNumber: r[5],
+        specialization: r[6],
+        hospital: r[7],
+    };
+}
+
+const _nameCache = {};
+export async function getDisplayName(signer, address) {
+    if (!address) return "";
+    const key = address.toLowerCase();
+    if (_nameCache[key] !== undefined) return _nameCache[key];
+    try {
+        const contract = getContract(signer);
+        const name = await contract.getDisplayName(address);
+        _nameCache[key] = name || "";
+        return _nameCache[key];
+    } catch {
+        _nameCache[key] = "";
+        return "";
+    }
+}
+
+export function clearNameCache() {
+    Object.keys(_nameCache).forEach(k => delete _nameCache[k]);
+}
+
+// ── Record Submission (Doctor) ────────────────────────────────────────
 
 export async function submitRecord(signer, patientAddress, cid, encryptedKeyForPatient, fileType, fileName) {
     const contract = getContract(signer);
@@ -149,9 +184,7 @@ export async function submitRecord(signer, patientAddress, cid, encryptedKeyForP
     return tx;
 }
 
-// ============================================================
-// Consent Management (Patient)
-// ============================================================
+// ── Consent Management (Patient) ─────────────────────────────────────
 
 export async function approveRecord(signer, recordIndex) {
     const contract = getContract(signer);
@@ -187,14 +220,12 @@ export async function getPendingCount(signer) {
     return Number(await contract.getPendingCount());
 }
 
-// ============================================================
-// Record Retrieval
-// ============================================================
+// ── Record Retrieval ─────────────────────────────────────────────────
 
 export async function getMyRecords(signer) {
     const contract = getContract(signer);
     const records = await contract.getMyRecords();
-    return records.map((r) => ({
+    return records.map(r => ({
         cid: r.cid,
         patientAddress: r.patientAddress,
         doctorAddress: r.doctorAddress,
@@ -208,7 +239,7 @@ export async function getMyRecords(signer) {
 export async function getPatientRecords(signer, patientAddress) {
     const contract = getContract(signer);
     const records = await contract.getPatientRecords(patientAddress);
-    return records.map((r) => ({
+    return records.map(r => ({
         cid: r.cid,
         patientAddress: r.patientAddress,
         doctorAddress: r.doctorAddress,
@@ -229,9 +260,7 @@ export async function getMyCids(signer) {
     return contract.getMyCids();
 }
 
-// ============================================================
-// Doctor: Get records submitted by this doctor (via events)
-// ============================================================
+// ── Doctor: Submissions via Events ───────────────────────────────────
 
 export async function getSubmittedByDoctor(signer) {
     const contract = getContract(signer);
@@ -251,15 +280,11 @@ export async function getSubmittedByDoctor(signer) {
         doctorAddress: e.args.doctor,
         cid: e.args.cid,
         timestamp: Number(e.args.timestamp),
-        status: approvedCids.has(e.args.cid) ? 'APPROVED'
-               : rejectedCids.has(e.args.cid) ? 'REJECTED'
-               : 'PENDING',
+        status: approvedCids.has(e.args.cid) ? 'APPROVED' : rejectedCids.has(e.args.cid) ? 'REJECTED' : 'PENDING',
     }));
 }
 
-// ============================================================
-// Access Management
-// ============================================================
+// ── Access Management ────────────────────────────────────────────────
 
 export async function grantAccess(signer, doctorAddress, cid, encryptedKeyForDoctor) {
     const contract = getContract(signer);
@@ -280,9 +305,7 @@ export async function getAuthorizedDoctors(signer) {
     return contract.getAuthorizedDoctors();
 }
 
-// ============================================================
-// Encrypted Key
-// ============================================================
+// ── Encrypted Key ────────────────────────────────────────────────────
 
 export async function getEncryptedKey(signer, cid) {
     const contract = getContract(signer);

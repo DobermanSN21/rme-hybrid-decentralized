@@ -1,54 +1,70 @@
 // context/WalletContext.jsx
-// ============================================================
-// React Context for wallet state & authentication
-// ============================================================
 
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
-import { connectWallet, getCurrentAccount, getRole, getPublicKey as getBlockchainPublicKey } from "../services/blockchain";
+import { connectWallet, getRole, getPublicKey as getBlockchainPublicKey, getContractOwner, getDoctorRequest, getDisplayName, clearNameCache } from "../services/blockchain";
 
 const WalletContext = createContext(null);
 
-// Role enum matching smart contract
-export const ROLES = {
-    NONE: 0,
-    PATIENT: 1,
-    DOCTOR: 2,
-};
-
-export const ROLE_LABELS = {
-    [ROLES.NONE]: "Belum Terdaftar",
-    [ROLES.PATIENT]: "Patient",
-    [ROLES.DOCTOR]: "Doctor",
-};
+export const ROLES = { NONE: 0, PATIENT: 1, DOCTOR: 2 };
+export const ROLE_LABELS = { [ROLES.NONE]: "Belum Terdaftar", [ROLES.PATIENT]: "Patient", [ROLES.DOCTOR]: "Doctor" };
 
 export function WalletProvider({ children }) {
-    const [account, setAccount] = useState(null); // { provider, signer, address }
+    const [account, setAccount] = useState(null);
     const [role, setRole] = useState(ROLES.NONE);
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [isPendingDoctor, setIsPendingDoctor] = useState(false);
+    const [pendingDoctorInfo, setPendingDoctorInfo] = useState(null); // { name, licenseNumber, specialization, hospital }
+    const [isRejectedDoctor, setIsRejectedDoctor] = useState(false);
+    const [rejectReason, setRejectReason] = useState("");
+    const [displayName, setDisplayName] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [privateKey, setPrivateKey] = useState(null); // ECC private key (stored in memory only)
+    const [privateKey, setPrivateKey] = useState(null);
 
-    // Connect MetaMask
+    const _loadStatus = useCallback(async (acc) => {
+        try {
+            const [r, ownerAddr] = await Promise.all([
+                getRole(acc.signer, acc.address),
+                getContractOwner(acc.signer),
+            ]);
+
+            const adminFlag = acc.address.toLowerCase() === ownerAddr.toLowerCase();
+            setIsAdmin(adminFlag);
+            setRole(r);
+
+            if (r !== ROLES.NONE) {
+                const name = await getDisplayName(acc.signer, acc.address);
+                setDisplayName(name);
+            } else if (!adminFlag) {
+                // Check if pending/rejected doctor request
+                try {
+                    const req = await getDoctorRequest(acc.signer, acc.address);
+                    if (req.isPending) {
+                        setIsPendingDoctor(true);
+                        setIsRejectedDoctor(false);
+                        setPendingDoctorInfo({ name: req.name, licenseNumber: req.licenseNumber, specialization: req.specialization, hospital: req.hospital });
+                    } else if (req.isRejected) {
+                        setIsRejectedDoctor(true);
+                        setRejectReason(req.rejectReason);
+                        setIsPendingDoctor(false);
+                    } else {
+                        setIsPendingDoctor(false);
+                        setIsRejectedDoctor(false);
+                    }
+                } catch { /* no request */ }
+            }
+        } catch (e) {
+            console.warn("[RME] Failed to load status:", e.message);
+        }
+    }, []);
+
     const connect = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
             const acc = await connectWallet();
             setAccount(acc);
-
-            // Check if already registered
-            try {
-                const r = await getRole(acc.signer, acc.address);
-                console.log(`[RME] Role for ${acc.address}: ${r} (${r === 1 ? "PATIENT" : r === 2 ? "DOCTOR" : "NONE"})`);
-                setRole(r);
-            } catch (roleErr) {
-                console.warn("[RME] Failed to get role:", roleErr.message);
-                setRole(ROLES.NONE);
-            }
-
-            // Private key is kept in-memory only (not persisted)
-            // User must re-import after page refresh for security
-
+            await _loadStatus(acc);
             return acc;
         } catch (err) {
             setError(err.message);
@@ -56,50 +72,36 @@ export function WalletProvider({ children }) {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [_loadStatus]);
 
-    // Disconnect
     const disconnect = useCallback(() => {
         setAccount(null);
         setRole(ROLES.NONE);
+        setIsAdmin(false);
+        setIsPendingDoctor(false);
+        setIsRejectedDoctor(false);
+        setPendingDoctorInfo(null);
+        setDisplayName("");
         setPrivateKey(null);
         setError(null);
+        clearNameCache();
     }, []);
 
-    // Save ECC private key (in-memory only — never persisted to storage)
-    const savePrivateKey = useCallback(
-        (key) => {
-            setPrivateKey(key);
-        },
-        []
-    );
+    const savePrivateKey = useCallback((key) => setPrivateKey(key), []);
 
-    // Refresh role from blockchain
-    const refreshRole = useCallback(async () => {
+    const refreshStatus = useCallback(async () => {
         if (!account) return;
-        try {
-            const r = await getRole(account.signer, account.address);
-            setRole(r);
-        } catch {
-            setRole(ROLES.NONE);
-        }
-    }, [account]);
+        await _loadStatus(account);
+    }, [account, _loadStatus]);
 
-    // Listen for MetaMask account changes
     useEffect(() => {
         if (!window.ethereum) return;
         const handleAccountsChanged = async (accounts) => {
             if (accounts.length === 0) {
                 disconnect();
             } else {
-                // Clear private key when switching accounts (it belongs to the previous account)
                 setPrivateKey(null);
-                // Re-connect with the new account
-                try {
-                    await connect();
-                } catch (err) {
-                    console.error("[RME] Failed to reconnect on account switch:", err);
-                }
+                try { await connect(); } catch {}
             }
         };
         window.ethereum.on("accountsChanged", handleAccountsChanged);
@@ -107,26 +109,18 @@ export function WalletProvider({ children }) {
     }, [connect, disconnect]);
 
     const value = {
-        account,
-        role,
-        loading,
-        error,
-        privateKey,
-        connect,
-        disconnect,
-        savePrivateKey,
-        refreshRole,
-        setRole,
-        setError,
+        account, role, loading, error, privateKey,
+        isAdmin, isPendingDoctor, pendingDoctorInfo, isRejectedDoctor, rejectReason,
+        displayName, setDisplayName,
+        connect, disconnect, savePrivateKey, refreshStatus,
+        setRole, setError, setIsPendingDoctor, setPendingDoctorInfo,
         isConnected: !!account,
         isPatient: role === ROLES.PATIENT,
         isDoctor: role === ROLES.DOCTOR,
         isRegistered: role !== ROLES.NONE,
     };
 
-    return (
-        <WalletContext.Provider value={value}>{children}</WalletContext.Provider>
-    );
+    return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
 }
 
 export function useWallet() {

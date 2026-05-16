@@ -74,6 +74,16 @@ VITE_PINATA_JWT=${pinataJwt}
 VITE_PINATA_GATEWAY=${pinataGateway}
 `;
 
+    // Copy ABI artifact to frontend
+    try {
+        const artifactSrc = path.join(__dirname, "..", "artifacts", "contracts", "MedicalRecordVault.sol", "MedicalRecordVault.json");
+        const artifactDst = path.join(__dirname, "..", "frontend", "src", "contracts", "MedicalRecordVault.json");
+        fs.copyFileSync(artifactSrc, artifactDst);
+        console.log(`\n📦 ABI telah disalin ke frontend/src/contracts/`);
+    } catch (err) {
+        console.log(`\n⚠️  Gagal menyalin ABI: ${err.message}`);
+    }
+
     try {
         fs.writeFileSync(envPath, envContent, "utf-8");
         console.log(`\n📝 frontend/.env telah diupdate dengan contract address`);

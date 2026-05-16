@@ -1,6 +1,7 @@
 // components/AccessManager.jsx
 
 import { useState, useEffect, useRef } from "react";
+import { useDisplayNames } from "../hooks/useDisplayName";
 import { isAddress } from "ethers";
 import { useWallet } from "../context/WalletContext";
 import ConfirmDialog from "./ConfirmDialog";
@@ -134,6 +135,10 @@ export default function AccessManager() {
         });
     };
 
+    const allAddresses = [...knownDoctors, ...doctors];
+    const namesMap = useDisplayNames(allAddresses);
+    const getName = (addr) => namesMap[addr?.toLowerCase()] || "";
+
     const short = (a) => `${a.slice(0, 8)}...${a.slice(-6)}`;
 
     // ── helpers for file icons ──────────────────────────────────
@@ -177,7 +182,7 @@ export default function AccessManager() {
                                 <button type="button" onClick={() => setDoctorDropOpen(o => !o)}
                                     style={{ width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 13px",borderRadius:"10px",border:`1.5px solid ${doctorDropOpen?"#2E7DDB":"#e2e8f0"}`,background:"white",cursor:"pointer",fontFamily:"inherit",transition:"border 0.15s",textAlign:"left" }}>
                                     <span style={{ fontSize:"0.85rem",color:doctorAddress?"#0f172a":"#94a3b8",fontWeight:doctorAddress?600:400,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1 }}>
-                                        {doctorAddress ? short(doctorAddress) : "— Select a doctor —"}
+                                        {doctorAddress ? (getName(doctorAddress) || short(doctorAddress)) : "— Pilih dokter —"}
                                     </span>
                                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform:doctorDropOpen?"rotate(180deg)":"none",transition:"transform 0.2s",flexShrink:0,marginLeft:"8px" }}><polyline points="6 9 12 15 18 9"/></svg>
                                 </button>
@@ -195,7 +200,7 @@ export default function AccessManager() {
                                                     <Ico size={14} color="#0d9488" d={<><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6 6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></>}/>
                                                 </div>
                                                 <div style={{ flex:1,minWidth:0 }}>
-                                                    <div style={{ fontSize:"0.8rem",fontWeight:600,color:doctorAddress===addr?"#1e40af":"#334155",fontFamily:"monospace" }}>{short(addr)}</div>
+                                                    <div style={{ fontSize:"0.8rem",fontWeight:600,color:doctorAddress===addr?"#1e40af":"#334155" }}>{getName(addr) || short(addr)}</div>
                                                     <div style={{ fontSize:"0.64rem",color:"#94a3b8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontFamily:"monospace" }}>{addr}</div>
                                                 </div>
                                                 {doctorAddress === addr && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2E7DDB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
@@ -358,7 +363,7 @@ export default function AccessManager() {
                                         <Ico size={15} color={sel?"#dc2626":"#0d9488"} d={<><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6 6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></>}/>
                                     </div>
                                     <div style={{ flex:1,minWidth:0 }}>
-                                        <div style={{ fontSize:"0.8rem",fontWeight:600,color:sel?"#dc2626":"#334155",fontFamily:"monospace" }}>{short(doc)}</div>
+                                        <div style={{ fontSize:"0.8rem",fontWeight:600,color:sel?"#dc2626":"#334155" }}>{getName(doc) || short(doc)}</div>
                                         <div style={{ fontSize:"0.63rem",color:"#94a3b8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontFamily:"monospace",marginTop:"1px" }}>{doc}</div>
                                     </div>
                                     <span style={{ fontSize:"0.65rem",fontWeight:700,padding:"2px 8px",borderRadius:"7px",background:sel?"#fee2e2":"#f0fdf4",color:sel?"#dc2626":"#16a34a",border:`1px solid ${sel?"#fca5a5":"#bbf7d0"}`,flexShrink:0 }}>
@@ -374,7 +379,7 @@ export default function AccessManager() {
                                 <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",gap:"12px",width:"100%",flexWrap:"wrap" }}>
                                     <div>
                                         <div style={{ fontSize:"0.68rem",fontWeight:700,color:"#dc2626",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:"2px" }}>Revoke access for</div>
-                                        <div style={{ fontSize:"0.78rem",color:"#7f1d1d",fontWeight:600,fontFamily:"monospace" }}>{short(revokeTarget)}</div>
+                                        <div style={{ fontSize:"0.78rem",color:"#7f1d1d",fontWeight:600 }}>{getName(revokeTarget) || short(revokeTarget)}</div>
                                     </div>
                                     <button onClick={() => handleRevoke(revokeTarget)} className="btn btn-danger" style={{ fontSize:"0.8rem",padding:"8px 18px",flexShrink:0 }}>
                                         <Ico size={13} color="white" d={<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" x2="22" y1="8" y2="13"/><line x1="22" x2="17" y1="8" y2="13"/></>}/> Revoke Access

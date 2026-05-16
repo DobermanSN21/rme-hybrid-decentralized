@@ -26,7 +26,7 @@ const IconCheck = ({ size = 13, color = "#16a34a" }) => (
 );
 
 export default function Layout({ children }) {
-    const { account, role, disconnect, isPatient } = useWallet();
+    const { account, role, disconnect, isPatient, displayName } = useWallet();
     const [copied, setCopied] = useState(false);
 
     const shortenAddress = (addr) =>
@@ -83,6 +83,11 @@ export default function Layout({ children }) {
                         <span className={`badge ${isPatient ? "badge-patient" : "badge-doctor"}`}>
                             {ROLE_LABELS[role]}
                         </span>
+                        {displayName && (
+                            <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#334155", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {displayName}
+                            </span>
+                        )}
                         <button
                             onClick={handleCopy}
                             title={copied ? "Copied!" : `Copy address: ${account?.address}`}

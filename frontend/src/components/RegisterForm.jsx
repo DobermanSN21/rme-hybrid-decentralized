@@ -1,39 +1,50 @@
 // components/RegisterForm.jsx
-// ============================================================
-// Registration + Login form
-// ============================================================
 
 import { useState } from "react";
 import { useWallet, ROLES } from "../context/WalletContext";
-import { registerAsPatient, registerAsDoctor, getRole, getPublicKey as getBlockchainPublicKey } from "../services/blockchain";
+import { registerAsPatient, requestDoctorVerification, getRole, getPublicKey as getBlockchainPublicKey } from "../services/blockchain";
 import { generateKeyPair, privateKeyToPublicKey } from "../services/crypto";
 
-export default function RegisterForm() {
-    const { account, savePrivateKey, setRole, setError } = useWallet();
-    const [mode, setMode] = useState("register"); // "register" | "login"
-    const [selectedRole, setSelectedRole] = useState("patient");
-    const [loading, setLoading] = useState(false);
-    const [generatedKeys, setGeneratedKeys] = useState(null);
-    const [registrationSuccess, setRegistrationSuccess] = useState(false);
-    const [loginKey, setLoginKey] = useState("");
-    const [loginError, setLoginError] = useState("");
+const SPECIALIZATIONS = [
+    "Dokter Umum",
+    "Penyakit Dalam",
+    "Bedah Umum",
+    "Bedah Ortopedi",
+    "Kardiologi",
+    "Neurologi",
+    "Psikiatri",
+    "Anak (Pediatri)",
+    "Obstetri & Ginekologi",
+    "Radiologi",
+    "Anestesiologi",
+    "Onkologi",
+    "Dermatologi",
+    "Oftalmologi",
+    "THT (Telinga Hidung Tenggorokan)",
+    "Urologi",
+    "Pulmonologi",
+    "Endokrinologi",
+    "Reumatologi",
+    "Gizi Klinik",
+];
+
+const Spinner = () => (
+    <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+    </svg>
+);
+
+// ── Private Key Backup Screen ─────────────────────────────────────────
+
+function KeyBackupScreen({ privateKey, onContinue, continueLabel = "Go to Dashboard" }) {
     const [copied, setCopied] = useState(false);
     const [downloaded, setDownloaded] = useState(false);
 
-    const handleGoToDashboard = () => {
-        setRole(selectedRole === "patient" ? ROLES.PATIENT : ROLES.DOCTOR);
-    };
-
-    const handleDownloadKey = (privateKey) => {
-        const content = `RME Vault — ECC Private Key\n` +
-            `Role: ${selectedRole}\n` +
-            `Date: ${new Date().toISOString()}\n\n` +
-            `PRIVATE KEY (keep this secret!):\n${privateKey}\n\n` +
-            `WARNING: Anyone with this key can decrypt your medical records.\n` +
-            `Store this file in a safe, private location.`;
-        const blob = new Blob([content], { type: 'text/plain' });
+    const handleDownload = () => {
+        const content = `RME Vault — ECC Private Key\nDate: ${new Date().toISOString()}\n\nPRIVATE KEY (keep this secret!):\n${privateKey}\n\nWARNING: Anyone with this key can decrypt medical records. Store safely.`;
+        const blob = new Blob([content], { type: "text/plain" });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = url;
         a.download = `rme-vault-private-key-${Date.now()}.txt`;
         a.click();
@@ -41,320 +52,325 @@ export default function RegisterForm() {
         setDownloaded(true);
     };
 
-    const handleRegister = async () => {
-        setLoading(true);
-        setError(null);
+    const saved = copied || downloaded;
+
+    return (
+        <div style={{ padding: "10px 0" }}>
+            <div style={{ padding: "20px", borderRadius: "14px", background: "#fffbeb", border: "1.5px solid #fde68a", marginBottom: "20px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                        <line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/>
+                    </svg>
+                    <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#b45309" }}>SIMPAN PRIVATE KEY ANDA</span>
+                </div>
+                <p style={{ fontSize: "0.78rem", color: "#92400e", lineHeight: "1.5", marginBottom: "14px" }}>
+                    Key ini hanya ditampilkan sekali. Diperlukan untuk mengenkripsi dan mendekripsi rekam medis.
+                </p>
+                <div style={{ padding: "14px", borderRadius: "10px", background: "white", border: "1.5px solid #e2e8f0", marginBottom: "12px" }}>
+                    <p className="mono" style={{ fontSize: "0.78rem", wordBreak: "break-all", color: "#334155", userSelect: "all", lineHeight: "1.65", margin: 0 }}>
+                        {privateKey}
+                    </p>
+                </div>
+                <div style={{ display: "flex", gap: "8px" }}>
+                    <button onClick={() => { navigator.clipboard.writeText(privateKey); setCopied(true); setTimeout(() => setCopied(false), 2500); }}
+                        className="btn btn-ghost" style={{ flex: 1, justifyContent: "center", fontSize: "0.78rem", padding: "10px", background: copied ? "#f0fdf4" : undefined, borderColor: copied ? "#bbf7d0" : undefined, color: copied ? "#16a34a" : undefined }}>
+                        {copied ? "✓ Copied!" : "Copy"}
+                    </button>
+                    <button onClick={handleDownload}
+                        className="btn btn-ghost" style={{ flex: 1, justifyContent: "center", fontSize: "0.78rem", padding: "10px", background: downloaded ? "#f0fdf4" : undefined, borderColor: downloaded ? "#bbf7d0" : undefined, color: downloaded ? "#16a34a" : undefined }}>
+                        {downloaded ? "✓ Downloaded!" : "Download .txt"}
+                    </button>
+                </div>
+            </div>
+
+            <p style={{ fontSize: "0.78rem", color: "#94a3b8", textAlign: "center", marginBottom: "14px" }}>
+                Pastikan Anda sudah menyimpan private key sebelum melanjutkan.
+            </p>
+            <button onClick={onContinue} disabled={!saved} className="btn btn-primary"
+                style={{ width: "100%", justifyContent: "center", padding: "12px", fontSize: "0.88rem", opacity: saved ? 1 : 0.5, cursor: saved ? "pointer" : "not-allowed" }}>
+                {saved ? `✓ Key tersimpan — ${continueLabel}` : "Simpan key terlebih dahulu"}
+            </button>
+            {!saved && (
+                <p style={{ fontSize: "0.72rem", color: "#f59e0b", textAlign: "center", marginTop: "8px" }}>
+                    ⚠ Copy atau download private key di atas sebelum melanjutkan.
+                </p>
+            )}
+        </div>
+    );
+}
+
+// ── Main RegisterForm ─────────────────────────────────────────────────
+
+export default function RegisterForm() {
+    const { account, savePrivateKey, setRole, setIsPendingDoctor, setPendingDoctorInfo, setError } = useWallet();
+
+    const [mode, setMode] = useState("register"); // "register" | "login"
+    const [regType, setRegType] = useState("patient"); // "patient" | "doctor"
+
+    // Patient fields
+    const [patientName, setPatientName] = useState("");
+
+    // Doctor fields
+    const [doctorName, setDoctorName] = useState("");
+    const [licenseNumber, setLicenseNumber] = useState("");
+    const [specialization, setSpecialization] = useState("");
+    const [hospital, setHospital] = useState("");
+
+    // Shared state
+    const [loading, setLoading] = useState(false);
+    const [generatedPrivateKey, setGeneratedPrivateKey] = useState(null);
+    const [registrationSuccess, setRegistrationSuccess] = useState(false); // patient success
+    const [doctorRequestSent, setDoctorRequestSent] = useState(false);
+
+    // Login
+    const [loginKey, setLoginKey] = useState("");
+    const [loginError, setLoginError] = useState("");
+
+    // ── Patient Registration ──────────────────────────────────────────
+
+    const handlePatientRegister = async () => {
+        if (!patientName.trim()) { setError("Nama lengkap tidak boleh kosong."); return; }
+        setLoading(true); setError(null);
         try {
             const keyPair = generateKeyPair();
-            setGeneratedKeys(keyPair);
-
-            if (selectedRole === "patient") {
-                await registerAsPatient(account.signer, keyPair.publicKey);
-            } else {
-                await registerAsDoctor(account.signer, keyPair.publicKey);
-            }
-
+            await registerAsPatient(account.signer, patientName.trim(), keyPair.publicKey);
             savePrivateKey(keyPair.privateKey);
+            setGeneratedPrivateKey(keyPair.privateKey);
             setRegistrationSuccess(true);
         } catch (err) {
-            setGeneratedKeys(null);
             setError(err.message || "Registration failed");
         } finally {
             setLoading(false);
         }
     };
 
-    // Login with ECC private key
+    const handlePatientGoToDashboard = () => {
+        setRole(ROLES.PATIENT);
+    };
+
+    // ── Doctor Request ────────────────────────────────────────────────
+
+    const handleDoctorRequest = async () => {
+        if (!doctorName.trim()) { setError("Nama lengkap tidak boleh kosong."); return; }
+        if (!licenseNumber.trim()) { setError("Nomor SIP tidak boleh kosong."); return; }
+        if (!specialization) { setError("Pilih spesialisasi terlebih dahulu."); return; }
+        if (!hospital.trim()) { setError("Nama rumah sakit / klinik tidak boleh kosong."); return; }
+        setLoading(true); setError(null);
+        try {
+            const keyPair = generateKeyPair();
+            await requestDoctorVerification(account.signer, doctorName.trim(), licenseNumber.trim(), specialization, hospital.trim(), keyPair.publicKey);
+            savePrivateKey(keyPair.privateKey);
+            setGeneratedPrivateKey(keyPair.privateKey);
+            setDoctorRequestSent(true);
+        } catch (err) {
+            setError(err.message || "Failed to submit verification request");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDoctorRequestContinue = () => {
+        setIsPendingDoctor(true);
+        setPendingDoctorInfo({ name: doctorName.trim(), licenseNumber: licenseNumber.trim(), specialization, hospital: hospital.trim() });
+    };
+
+    // ── Login ─────────────────────────────────────────────────────────
+
     const handleLogin = async () => {
         const key = loginKey.trim();
         setLoginError("");
         if (!key || key.length !== 64 || !/^[0-9a-fA-F]+$/.test(key)) {
-            setLoginError("Private key must be exactly 64 hexadecimal characters.");
+            setLoginError("Private key harus tepat 64 karakter hexadecimal.");
             return;
         }
         setLoading(true);
         try {
-            // 1. Derive public key from private key
             const derivedPubKey = privateKeyToPublicKey(key);
-            console.log("[RME Login] Connected address:", account.address);
-            console.log("[RME Login] Derived pubkey (first 20):", derivedPubKey.substring(0, 20) + "...");
-            
-            // 2. Get public key stored on blockchain for THIS specific address
             const onChainPubKey = await getBlockchainPublicKey(account.signer, account.address);
-            console.log("[RME Login] On-chain pubkey (first 20):", onChainPubKey ? onChainPubKey.substring(0, 20) + "..." : "EMPTY");
-            
-            // 3. Verify account exists
-            if (!onChainPubKey || onChainPubKey === "" || onChainPubKey === "0x") {
-                setLoginError("No account found for this wallet address. Please register first.");
+            if (!onChainPubKey || onChainPubKey === "") {
+                setLoginError("Akun tidak ditemukan. Silakan registrasi terlebih dahulu.");
                 return;
             }
-            
-            // 4. STRICT comparison — key must belong to THIS wallet
             if (derivedPubKey !== onChainPubKey) {
-                console.warn("[RME Login] Key mismatch! This key does not belong to wallet", account.address);
-                setLoginError("This private key does not belong to the currently connected wallet. Make sure you are using the correct MetaMask account.");
+                setLoginError("Private key ini tidak sesuai dengan wallet yang terhubung.");
                 return;
             }
-            
-            // 5. Get role and authenticate
             const role = await getRole(account.signer, account.address);
             if (role === ROLES.NONE) {
-                setLoginError("Account not registered on blockchain.");
+                setLoginError("Akun belum terdaftar di blockchain.");
                 return;
             }
-            
-            console.log("[RME Login] Success! Role:", role === 1 ? "PATIENT" : "DOCTOR");
             savePrivateKey(key);
             setRole(role);
         } catch (err) {
             const msg = err.message || String(err);
-            console.error("[RME Login] Error:", msg);
-            if (msg.includes("getPublicKey") || msg.includes("BAD_DATA")) {
-                setLoginError("No account found for this wallet address. Please register first.");
+            if (msg.includes("getPublicKey") || msg.includes("BAD_DATA") || msg.includes("No public key")) {
+                setLoginError("Akun tidak ditemukan. Silakan registrasi terlebih dahulu.");
             } else {
-                setLoginError("Login failed: " + msg);
+                setLoginError("Login gagal: " + msg);
             }
         } finally {
             setLoading(false);
         }
     };
 
+    // ── Render ────────────────────────────────────────────────────────
+
+    // Patient: show key backup after registration
     if (registrationSuccess) {
         return (
-            <div className="glass-card max-w-lg mx-auto animate-fade-in" style={{ padding: "36px 32px 28px" }}>
-                {/* Success Header */}
-                <div style={{ textAlign: "center", marginBottom: "28px" }}>
-                    <div style={{
-                        width: "64px", height: "64px", borderRadius: "50%",
-                        background: "rgba(34, 197, 94, 0.1)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        margin: "0 auto 16px",
-                    }}>
+            <div className="glass-card max-w-lg mx-auto animate-fade-in" style={{ padding: "32px" }}>
+                <div style={{ textAlign: "center", marginBottom: "24px" }}>
+                    <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: "rgba(34,197,94,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                            <polyline points="22 4 12 14.01 9 11.01" />
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
                         </svg>
                     </div>
-                    <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#0f172a", marginBottom: "6px" }}>
-                        Registration Successful!
-                    </h2>
-                    <p style={{ fontSize: "0.875rem", color: "#64748b" }}>
-                        You are registered as{" "}
-                        <span style={{
-                            fontWeight: 700,
-                            color: selectedRole === "patient" ? "#2E7DDB" : "#0d9488",
-                        }}>
-                            {selectedRole === "patient" ? "Patient" : "Doctor"}
-                        </span>
-                    </p>
+                    <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}>Registrasi Berhasil!</h2>
+                    <p style={{ fontSize: "0.85rem", color: "#64748b" }}>Selamat datang, <strong>{patientName}</strong></p>
                 </div>
+                <KeyBackupScreen privateKey={generatedPrivateKey} onContinue={handlePatientGoToDashboard} continueLabel="Masuk ke Dashboard" />
+            </div>
+        );
+    }
 
-                {/* Private Key Warning */}
-                {generatedKeys && (
-                    <div style={{
-                        padding: "20px",
-                        borderRadius: "14px",
-                        background: "#fffbeb",
-                        border: "1.5px solid #fde68a",
-                        marginBottom: "24px",
-                    }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-                                <line x1="12" x2="12" y1="9" y2="13" /><line x1="12" x2="12.01" y1="17" y2="17" />
-                            </svg>
-                            <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#b45309", letterSpacing: "0.02em" }}>
-                                IMPORTANT — SAVE YOUR PRIVATE KEY
-                            </span>
-                        </div>
-                        <p style={{ fontSize: "0.78rem", color: "#92400e", lineHeight: "1.5", marginBottom: "14px", opacity: 0.8 }}>
-                            This private key is only shown once. You need it to encrypt and decrypt medical records.
-                        </p>
-                        <div style={{
-                            padding: "14px",
-                            borderRadius: "10px",
-                            background: "white",
-                            border: "1.5px solid #e2e8f0",
-                        }}>
-                            <p className="mono" style={{
-                                fontSize: "0.78rem",
-                                wordBreak: "break-all",
-                                color: "#334155",
-                                userSelect: "all",
-                                lineHeight: "1.65",
-                                margin: 0,
-                            }}>
-                                {generatedKeys.privateKey}
-                            </p>
-                        </div>
-                        <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
-                            <button
-                                onClick={() => {
-                                    navigator.clipboard.writeText(generatedKeys.privateKey);
-                                    setCopied(true);
-                                    setTimeout(() => setCopied(false), 2500);
-                                }}
-                                className="btn btn-ghost"
-                                style={{
-                                    flex: 1, justifyContent: "center",
-                                    fontSize: "0.78rem", padding: "10px",
-                                    background: copied ? "#f0fdf4" : undefined,
-                                    borderColor: copied ? "#bbf7d0" : undefined,
-                                    color: copied ? "#16a34a" : undefined,
-                                }}
-                            >
-                                {copied ? (
-                                    <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Copied!</>
-                                ) : (
-                                    <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg> Copy</>
-                                )}
-                            </button>
-                            <button
-                                onClick={() => handleDownloadKey(generatedKeys.privateKey)}
-                                className="btn btn-ghost"
-                                style={{
-                                    flex: 1, justifyContent: "center",
-                                    fontSize: "0.78rem", padding: "10px",
-                                    background: downloaded ? "#f0fdf4" : undefined,
-                                    borderColor: downloaded ? "#bbf7d0" : undefined,
-                                    color: downloaded ? "#16a34a" : undefined,
-                                }}
-                            >
-                                {downloaded ? (
-                                    <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Downloaded!</>
-                                ) : (
-                                    <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg> Download .txt</>
-                                )}
-                            </button>
-                        </div>
+    // Doctor: show key backup after request
+    if (doctorRequestSent) {
+        return (
+            <div className="glass-card max-w-lg mx-auto animate-fade-in" style={{ padding: "32px" }}>
+                <div style={{ textAlign: "center", marginBottom: "24px" }}>
+                    <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: "rgba(234,179,8,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ca8a04" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+                        </svg>
                     </div>
-                )}
-
-                {/* Confirmation to proceed */}
-                <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "20px" }}>
-                    <p style={{ fontSize: "0.78rem", color: "#94a3b8", textAlign: "center", marginBottom: "14px" }}>
-                        Make sure you have saved your private key before continuing.
-                    </p>
-                    <button
-                        onClick={handleGoToDashboard}
-                        disabled={!copied && !downloaded}
-                        className="btn btn-primary"
-                        style={{ width: "100%", justifyContent: "center", padding: "12px", fontSize: "0.88rem", opacity: (copied || downloaded) ? 1 : 0.5, cursor: (copied || downloaded) ? "pointer" : "not-allowed" }}
-                    >
-                        {(copied || downloaded) ? "✓ I've saved my key — Go to Dashboard" : "Save your key first to continue"}
-                    </button>
-                    {!copied && !downloaded && (
-                        <p style={{ fontSize: "0.72rem", color: "#f59e0b", textAlign: "center", marginTop: "8px" }}>
-                            ⚠ Copy or download your private key above before proceeding. This key cannot be recovered if lost.
-                        </p>
-                    )}
+                    <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}>Permohonan Terkirim!</h2>
+                    <p style={{ fontSize: "0.85rem", color: "#64748b" }}>Simpan private key Anda, lalu tunggu verifikasi admin.</p>
                 </div>
+                <KeyBackupScreen privateKey={generatedPrivateKey} onContinue={handleDoctorRequestContinue} continueLabel="Lihat Status Permohonan" />
             </div>
         );
     }
 
     return (
         <div className="glass-card max-w-lg mx-auto animate-fade-in" style={{ padding: "32px" }}>
-            {/* Mode Tabs */}
-            <div style={{ display:"flex",gap:"4px",marginBottom:"24px",background:"#f1f5f9",padding:"4px",borderRadius:"10px" }}>
-                <button onClick={() => { setMode("register"); setLoginError(""); }} style={{ flex:1,padding:"10px",borderRadius:"8px",border:"none",cursor:"pointer",fontWeight:600,fontSize:"0.82rem",transition:"all 0.2s",background:mode==="register"?"white":"transparent",color:mode==="register"?"#0f172a":"#64748b",boxShadow:mode==="register"?"0 1px 3px rgba(0,0,0,0.08)":"none" }}>
-                    Register
-                </button>
-                <button onClick={() => { setMode("login"); setLoginError(""); }} style={{ flex:1,padding:"10px",borderRadius:"8px",border:"none",cursor:"pointer",fontWeight:600,fontSize:"0.82rem",transition:"all 0.2s",background:mode==="login"?"white":"transparent",color:mode==="login"?"#0f172a":"#64748b",boxShadow:mode==="login"?"0 1px 3px rgba(0,0,0,0.08)":"none" }}>
-                    Login
-                </button>
+            {/* Tabs */}
+            <div style={{ display: "flex", gap: "4px", marginBottom: "28px", background: "#f1f5f9", padding: "4px", borderRadius: "10px" }}>
+                {["register", "login"].map(m => (
+                    <button key={m} onClick={() => { setMode(m); setLoginError(""); }}
+                        style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "none", cursor: "pointer", fontWeight: 600, fontSize: "0.82rem", transition: "all 0.2s", background: mode === m ? "white" : "transparent", color: mode === m ? "#0f172a" : "#64748b", boxShadow: mode === m ? "0 1px 3px rgba(0,0,0,0.08)" : "none" }}>
+                        {m === "register" ? "Daftar" : "Login"}
+                    </button>
+                ))}
             </div>
 
             {mode === "login" ? (
-                /* ===== LOGIN MODE ===== */
+                /* ── LOGIN ── */
                 <div>
-                    <div style={{ textAlign:"center",marginBottom:"24px" }}>
-                        <div style={{ width:"56px",height:"56px",borderRadius:"50%",background:"rgba(46,125,219,0.1)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px" }}>
+                    <div style={{ textAlign: "center", marginBottom: "24px" }}>
+                        <div style={{ width: "56px", height: "56px", borderRadius: "50%", background: "rgba(46,125,219,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
                             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2E7DDB" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/></svg>
                         </div>
-                        <h2 style={{ fontSize:"1.15rem",fontWeight:700,color:"#0f172a",marginBottom:"6px" }}>Login with Private Key</h2>
-                        <p style={{ fontSize:"0.8rem",color:"#94a3b8",lineHeight:"1.5",marginBottom:"10px" }}>
-                            Enter the ECC private key you received during registration.
-                        </p>
-                        <div style={{ display:"inline-flex",alignItems:"center",gap:"6px",padding:"5px 12px",borderRadius:"8px",background:"#f1f5f9",border:"1px solid #e2e8f0" }}>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                            <span style={{ fontSize:"0.72rem",fontFamily:"'JetBrains Mono',monospace",color:"#475569" }}>{account?.address}</span>
-                        </div>
+                        <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}>Login dengan Private Key</h2>
+                        <p style={{ fontSize: "0.8rem", color: "#94a3b8" }}>Masukkan ECC private key yang Anda simpan saat registrasi.</p>
                     </div>
 
-                    <div style={{ marginBottom:"6px" }}>
-                        <label style={{ display:"block",fontSize:"0.72rem",fontWeight:600,color:"#64748b",marginBottom:"6px",textTransform:"uppercase",letterSpacing:"0.06em" }}>ECC Private Key</label>
-                        <input
-                            type="password"
-                            value={loginKey}
-                            onChange={(e) => { setLoginKey(e.target.value); setLoginError(""); }}
-                            onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                            placeholder="Paste your 64-character hex key..."
-                            className="input-field"
-                            style={{ fontSize:"0.85rem",borderColor: loginError ? "#fca5a5" : undefined }}
-                        />
-                        {loginError && <p style={{ fontSize:"0.75rem",color:"#e11d48",marginTop:"8px" }}>{loginError}</p>}
-                        {loginKey && !loginError && <p style={{ fontSize:"0.72rem",color:"#94a3b8",marginTop:"4px" }}>{loginKey.trim().length}/64 characters</p>}
+                    <div style={{ marginBottom: "14px" }}>
+                        <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.06em" }}>ECC Private Key</label>
+                        <input type="password" value={loginKey} onChange={e => { setLoginKey(e.target.value); setLoginError(""); }}
+                            onKeyDown={e => e.key === "Enter" && handleLogin()} placeholder="Paste 64-karakter hex key..." className="input-field"
+                            style={{ fontSize: "0.85rem", borderColor: loginError ? "#fca5a5" : undefined }} />
+                        {loginError && <p style={{ fontSize: "0.75rem", color: "#e11d48", marginTop: "8px" }}>{loginError}</p>}
+                        {loginKey && !loginError && <p style={{ fontSize: "0.72rem", color: "#94a3b8", marginTop: "4px" }}>{loginKey.trim().length}/64 karakter</p>}
                     </div>
 
-                    <div style={{ padding:"10px 12px",borderRadius:"8px",background:"#f8fafc",border:"1px solid #e2e8f0",marginBottom:"16px",marginTop:"12px" }}>
-                        <p style={{ fontSize:"0.72rem",color:"#94a3b8",lineHeight:"1.5" }}>
-                            <strong style={{ color:"#64748b" }}>How it works:</strong> Your private key is verified against the public key stored on the blockchain for your wallet address.
-                        </p>
-                    </div>
-
-                    <button
-                        onClick={handleLogin}
-                        disabled={loading || !loginKey.trim()}
-                        className="btn btn-primary w-full justify-center"
-                        style={{ padding:"12px 22px",fontSize:"0.9rem" }}
-                    >
-                        {loading
-                            ? <><svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Verifying...</>
-                            : "Login"}
+                    <button onClick={handleLogin} disabled={loading || !loginKey.trim()} className="btn btn-primary w-full justify-center" style={{ padding: "12px 22px", fontSize: "0.9rem" }}>
+                        {loading ? <><Spinner/> Memverifikasi...</> : "Login"}
                     </button>
                 </div>
             ) : (
-                /* ===== REGISTER MODE ===== */
+                /* ── REGISTER ── */
                 <div>
-                    <h2 className="section-title" style={{ marginBottom: "8px" }}>Account Registration</h2>
-                    <p className="text-sm text-surface-700/40" style={{ marginBottom: "28px", lineHeight: "1.6" }}>
-                        Select your role and the system will automatically generate an ECC key pair for data encryption.
-                    </p>
+                    <h2 style={{ fontSize: "1.05rem", fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}>Buat Akun Baru</h2>
+                    <p style={{ fontSize: "0.8rem", color: "#94a3b8", marginBottom: "24px" }}>Pilih jenis akun Anda untuk mengakses sistem.</p>
 
-                    <div className="grid grid-cols-2 gap-4" style={{ marginBottom: "28px" }}>
-                        {/* Patient Card */}
-                        <button onClick={() => setSelectedRole("patient")} className="role-select-card" style={{ background:selectedRole==="patient"?"#eef5ff":"white",border:selectedRole==="patient"?"2px solid #2E7DDB":"2px solid #e2e8f0",borderRadius:"14px",padding:"28px 16px 24px",cursor:"pointer",transition:"all 0.25s ease",position:"relative",display:"flex",flexDirection:"column",alignItems:"center",gap:"4px" }}>
-                            {selectedRole === "patient" && <div style={{ position:"absolute",top:"10px",right:"10px",width:"22px",height:"22px",borderRadius:"50%",background:"#2E7DDB",display:"flex",alignItems:"center",justifyContent:"center" }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>}
-                            <div style={{ width:"52px",height:"52px",borderRadius:"14px",background:selectedRole==="patient"?"rgba(46,125,219,0.12)":"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:"8px",transition:"background 0.25s ease" }}>
-                                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={selectedRole==="patient"?"#2E7DDB":"#64748b"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>
+                    {/* Type selector */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "28px" }}>
+                        {/* Patient */}
+                        <button onClick={() => setRegType("patient")}
+                            style={{ background: regType === "patient" ? "#eef5ff" : "white", border: regType === "patient" ? "2px solid #2E7DDB" : "2px solid #e2e8f0", borderRadius: "14px", padding: "22px 12px", cursor: "pointer", transition: "all 0.2s", position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
+                            {regType === "patient" && <div style={{ position: "absolute", top: "10px", right: "10px", width: "20px", height: "20px", borderRadius: "50%", background: "#2E7DDB", display: "flex", alignItems: "center", justifyContent: "center" }}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>}
+                            <div style={{ width: "46px", height: "46px", borderRadius: "12px", background: regType === "patient" ? "rgba(46,125,219,0.12)" : "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "8px" }}>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={regType === "patient" ? "#2E7DDB" : "#64748b"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>
                             </div>
-                            <div style={{ fontWeight:700,fontSize:"0.925rem",color:"#0f172a" }}>Patient</div>
-                            <div style={{ fontSize:"0.75rem",color:"#94a3b8",marginTop:"2px" }}>Medical data owner</div>
+                            <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#0f172a" }}>Pasien</div>
+                            <div style={{ fontSize: "0.72rem", color: "#94a3b8" }}>Pemilik data medis</div>
                         </button>
 
-                        {/* Doctor Card */}
-                        <button onClick={() => setSelectedRole("doctor")} className="role-select-card" style={{ background:selectedRole==="doctor"?"#f0fdf9":"white",border:selectedRole==="doctor"?"2px solid #14b8a6":"2px solid #e2e8f0",borderRadius:"14px",padding:"28px 16px 24px",cursor:"pointer",transition:"all 0.25s ease",position:"relative",display:"flex",flexDirection:"column",alignItems:"center",gap:"4px" }}>
-                            {selectedRole === "doctor" && <div style={{ position:"absolute",top:"10px",right:"10px",width:"22px",height:"22px",borderRadius:"50%",background:"#14b8a6",display:"flex",alignItems:"center",justifyContent:"center" }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>}
-                            <div style={{ width:"52px",height:"52px",borderRadius:"14px",background:selectedRole==="doctor"?"rgba(20,184,166,0.12)":"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:"8px",transition:"background 0.25s ease" }}>
-                                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={selectedRole==="doctor"?"#14b8a6":"#64748b"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6 6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
+                        {/* Doctor */}
+                        <button onClick={() => setRegType("doctor")}
+                            style={{ background: regType === "doctor" ? "#f0fdf9" : "white", border: regType === "doctor" ? "2px solid #14b8a6" : "2px solid #e2e8f0", borderRadius: "14px", padding: "22px 12px", cursor: "pointer", transition: "all 0.2s", position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
+                            {regType === "doctor" && <div style={{ position: "absolute", top: "10px", right: "10px", width: "20px", height: "20px", borderRadius: "50%", background: "#14b8a6", display: "flex", alignItems: "center", justifyContent: "center" }}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>}
+                            <div style={{ width: "46px", height: "46px", borderRadius: "12px", background: regType === "doctor" ? "rgba(20,184,166,0.12)" : "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "8px" }}>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={regType === "doctor" ? "#14b8a6" : "#64748b"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6 6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
                             </div>
-                            <div style={{ fontWeight:700,fontSize:"0.925rem",color:"#0f172a" }}>Doctor</div>
-                            <div style={{ fontSize:"0.75rem",color:"#94a3b8",marginTop:"2px" }}>Data accessor (with permission)</div>
+                            <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "#0f172a" }}>Dokter</div>
+                            <div style={{ fontSize: "0.72rem", color: "#94a3b8", textAlign: "center" }}>Perlu verifikasi admin</div>
                         </button>
                     </div>
 
-                    <button
-                        onClick={handleRegister}
-                        disabled={loading}
-                        className={`btn w-full justify-center ${selectedRole === "patient" ? "btn-primary" : "btn-accent"}`}
-                        style={{ padding: "12px 22px", fontSize: "0.9rem" }}
-                    >
-                        {loading
-                            ? (<><svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg> Registering...</>)
-                            : `Register as ${selectedRole === "patient" ? "Patient" : "Doctor"}`
-                        }
-                    </button>
+                    {/* Patient Form */}
+                    {regType === "patient" && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                            <div>
+                                <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Nama Lengkap</label>
+                                <input type="text" value={patientName} onChange={e => setPatientName(e.target.value)} placeholder="Masukkan nama lengkap Anda" className="input-field" autoFocus />
+                            </div>
+                            <div style={{ padding: "10px 13px", borderRadius: "9px", background: "#f0f7ff", border: "1px solid #bfdbfe", fontSize: "0.75rem", color: "#1e40af", lineHeight: 1.5 }}>
+                                Sistem akan otomatis membuat ECC key pair untuk enkripsi data medis Anda.
+                            </div>
+                            <button onClick={handlePatientRegister} disabled={loading || !patientName.trim()} className="btn btn-primary" style={{ width: "100%", justifyContent: "center", padding: "12px", fontSize: "0.9rem" }}>
+                                {loading ? <><Spinner/> Mendaftarkan...</> : "Daftar sebagai Pasien"}
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Doctor Request Form */}
+                    {regType === "doctor" && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                            <div style={{ padding: "10px 13px", borderRadius: "9px", background: "#fffbeb", border: "1px solid #fde68a", fontSize: "0.75rem", color: "#92400e", lineHeight: 1.5 }}>
+                                <strong>Permohonan Verifikasi Dokter</strong> — Data Anda akan ditinjau oleh administrator rumah sakit. Setelah disetujui, akun dokter Anda akan aktif.
+                            </div>
+
+                            <div>
+                                <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Nama Lengkap (sesuai KTP)</label>
+                                <input type="text" value={doctorName} onChange={e => setDoctorName(e.target.value)} placeholder="dr. Nama Lengkap" className="input-field" autoFocus />
+                            </div>
+
+                            <div>
+                                <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Nomor SIP (Surat Izin Praktik)</label>
+                                <input type="text" value={licenseNumber} onChange={e => setLicenseNumber(e.target.value)} placeholder="Contoh: 503/1234/SIP/2024" className="input-field" />
+                            </div>
+
+                            <div>
+                                <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Spesialisasi</label>
+                                <select value={specialization} onChange={e => setSpecialization(e.target.value)} className="input-field" style={{ cursor: "pointer" }}>
+                                    <option value="">— Pilih Spesialisasi —</option>
+                                    {SPECIALIZATIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Nama Rumah Sakit / Klinik</label>
+                                <input type="text" value={hospital} onChange={e => setHospital(e.target.value)} placeholder="RS / Klinik tempat Anda bertugas" className="input-field" />
+                            </div>
+
+                            <button onClick={handleDoctorRequest} disabled={loading || !doctorName.trim() || !licenseNumber.trim() || !specialization || !hospital.trim()} className="btn btn-accent" style={{ width: "100%", justifyContent: "center", padding: "12px", fontSize: "0.9rem" }}>
+                                {loading ? <><Spinner/> Mengirim Permohonan...</> : "Kirim Permohonan Verifikasi"}
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

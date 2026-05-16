@@ -6,6 +6,7 @@
 import { useState, useEffect, useRef } from "react";
 import { isAddress } from "ethers";
 import { useWallet } from "../context/WalletContext";
+import { useDisplayName } from "../hooks/useDisplayName";
 import Layout from "../components/Layout";
 import RecordCard from "../components/RecordCard";
 import {
@@ -42,6 +43,16 @@ const UPLOAD_STEPS = [
     { key: "blockchain", label: "Submitting record to blockchain..." },
     { key: "done", label: "Upload complete!" },
 ];
+
+function PatientNameDisplay({ address }) {
+    const name = useDisplayName(address);
+    return (
+        <div style={{ marginTop: "2px" }}>
+            {name && <p style={{ fontSize:"0.82rem",fontWeight:600,color:"#0f172a",margin:0 }}>{name}</p>}
+            <p style={{ fontFamily:"monospace",fontSize:"0.72rem",color:name?"#94a3b8":"#0f172a",margin:0,wordBreak:"break-all" }}>{address}</p>
+        </div>
+    );
+}
 
 export default function DoctorDashboard() {
     const { account, privateKey, setError, savePrivateKey } = useWallet();
@@ -558,8 +569,8 @@ export default function DoctorDashboard() {
                                                     </span>
                                                 </div>
                                                 <div style={{ marginBottom:"6px" }}>
-                                                    <span style={{ fontSize:"0.68rem",fontWeight:600,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.05em" }}>Patient</span>
-                                                    <p style={{ fontFamily:"monospace",fontSize:"0.78rem",color:"#0f172a",marginTop:"2px",wordBreak:"break-all" }}>{rec.patientAddress}</p>
+                                                    <span style={{ fontSize:"0.68rem",fontWeight:600,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.05em" }}>Pasien</span>
+                                                    <PatientNameDisplay address={rec.patientAddress} />
                                                 </div>
                                                 <div>
                                                     <span style={{ fontSize:"0.68rem",fontWeight:600,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.05em" }}>CID</span>

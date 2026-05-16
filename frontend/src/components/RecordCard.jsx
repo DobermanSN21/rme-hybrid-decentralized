@@ -4,6 +4,7 @@
 // ============================================================
 
 import { useState } from "react";
+import { useDisplayName } from "../hooks/useDisplayName";
 
 // SVG Icons
 const IconImage = ({ size = 18, color = "#2E7DDB" }) => (
@@ -75,6 +76,8 @@ const IconLockClosed = ({ size = 16, color = "#d97706" }) => (
 export default function RecordCard({ record, onDecrypt, decryptedData, keyAvailable }) {
     const [expanded, setExpanded] = useState(false);
     const [decrypting, setDecrypting] = useState(false);
+    const doctorName = useDisplayName(record.doctorAddress);
+    const patientName = useDisplayName(record.patientAddress);
 
     const formatDate = (ts) => {
         const d = new Date(ts * 1000);
@@ -151,8 +154,14 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
                     <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", fontSize: "0.73rem", padding: "10px 14px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #f1f5f9" }}>
                         {record.doctorAddress && (
                             <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                <span style={{ color: "#94a3b8" }}>Doctor:</span>
-                                <span className="mono" style={{ color: "#0d9488", fontWeight: 500 }}>{shortenAddr(record.doctorAddress)}</span>
+                                <span style={{ color: "#94a3b8" }}>Dokter:</span>
+                                <span style={{ color: "#0d9488", fontWeight: 600 }}>{doctorName || shortenAddr(record.doctorAddress)}</span>
+                            </div>
+                        )}
+                        {record.patientAddress && patientName && (
+                            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                <span style={{ color: "#94a3b8" }}>Pasien:</span>
+                                <span style={{ color: "#2E7DDB", fontWeight: 600 }}>{patientName}</span>
                             </div>
                         )}
                         <div style={{ display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
