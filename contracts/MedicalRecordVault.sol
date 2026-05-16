@@ -325,6 +325,13 @@ contract MedicalRecordVault {
     function revokeAccess(address _doctor) external onlyPatient {
         require(accessList[msg.sender][_doctor], "Doctor does not have access");
         accessList[msg.sender][_doctor] = false;
+
+        // Clear all encrypted keys for this doctor so old keys can't be reused
+        string[] storage cids = patientCids[msg.sender];
+        for (uint256 i = 0; i < cids.length; i++) {
+            delete encryptedKeys[cids[i]][_doctor];
+        }
+
         emit AccessRevoked(msg.sender, _doctor);
     }
 
