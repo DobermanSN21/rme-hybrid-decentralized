@@ -73,7 +73,7 @@ function PendingVerificationScreen() {
     );
 }
 
-function RejectedScreen() {
+function RejectedScreen({ onReapply }) {
     const { rejectReason, disconnect } = useWallet();
     return (
         <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
@@ -93,11 +93,17 @@ function RejectedScreen() {
                     </div>
                 )}
                 <p style={{ fontSize: "0.78rem", color: "#94a3b8", marginBottom: "20px" }}>
-                    Hubungi administrator untuk informasi lebih lanjut atau daftar ulang dengan data yang benar.
+                    Hubungi administrator untuk informasi lebih lanjut atau ajukan permohonan ulang dengan data yang benar.
                 </p>
-                <button onClick={disconnect} className="btn btn-ghost" style={{ width: "100%", justifyContent: "center", fontSize: "0.85rem" }}>
-                    Logout / Daftar Ulang
-                </button>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <button onClick={onReapply} className="btn btn-primary" style={{ width: "100%", justifyContent: "center", fontSize: "0.85rem" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                        Ajukan Permohonan Ulang
+                    </button>
+                    <button onClick={disconnect} className="btn btn-ghost" style={{ width: "100%", justifyContent: "center", fontSize: "0.85rem" }}>
+                        Logout / Ganti Wallet
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -107,6 +113,7 @@ export default function App() {
     const { isConnected, isRegistered, isAdmin, isPendingDoctor, isRejectedDoctor, role, error, setError, privateKey } = useWallet();
     const [toast, setToast] = useState(null);
     const [skippedKeyImport, setSkippedKeyImport] = useState(false);
+    const [reapplying, setReapplying] = useState(false);
 
     useEffect(() => {
         if (error) {
@@ -117,7 +124,7 @@ export default function App() {
     }, [error, setError]);
 
     useEffect(() => {
-        if (!isConnected) setSkippedKeyImport(false);
+        if (!isConnected) { setSkippedKeyImport(false); setReapplying(false); }
     }, [isConnected]);
 
     const renderPage = () => {
@@ -129,7 +136,7 @@ export default function App() {
         // Not registered
         if (!isRegistered) {
             if (isPendingDoctor) return <PendingVerificationScreen />;
-            if (isRejectedDoctor) return <RejectedScreen />;
+            if (isRejectedDoctor && !reapplying) return <RejectedScreen onReapply={() => setReapplying(true)} />;
             return <LandingPage />;
         }
 
