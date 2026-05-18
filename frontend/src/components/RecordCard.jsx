@@ -81,7 +81,7 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
 
     const formatDate = (ts) => {
         const d = new Date(ts * 1000);
-        return d.toLocaleDateString("en-US", {
+        return d.toLocaleDateString("id-ID", {
             day: "numeric",
             month: "short",
             year: "numeric",
@@ -123,8 +123,8 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
                 <div style={{ display:"flex",alignItems:"center",gap:"10px",padding:"10px 14px",borderRadius:"10px",background:"#fffbeb",border:"1px solid #fde68a",marginBottom:"14px" }}>
                     <IconLockClosed size={16} color="#d97706" />
                     <div style={{ flex:1 }}>
-                        <div style={{ fontSize:"0.75rem",fontWeight:700,color:"#b45309" }}>Decryption key not available</div>
-                        <div style={{ fontSize:"0.7rem",color:"#92400e",marginTop:"1px" }}>Ask the patient to grant access for this record via their <strong>Manage Access</strong> tab.</div>
+                        <div style={{ fontSize:"0.75rem",fontWeight:700,color:"#b45309" }}>Kunci dekripsi tidak tersedia</div>
+                        <div style={{ fontSize:"0.7rem",color:"#92400e",marginTop:"1px" }}>Minta pasien untuk memberikan akses rekam ini melalui tab <strong>Kelola Akses</strong> mereka.</div>
                     </div>
                 </div>
             )}
@@ -175,7 +175,7 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
                 <div style={{ display: "flex", gap: "8px", flexShrink: 0, alignItems: "flex-start" }}>
                     {!decryptedData && onDecrypt && keyAvailable === false ? (
                         <div style={{ display:"flex",alignItems:"center",gap:"6px",padding:"7px 14px",borderRadius:"9px",background:"#fffbeb",border:"1.5px solid #fde68a",fontSize:"0.75rem",fontWeight:600,color:"#b45309",whiteSpace:"nowrap" }}>
-                            <IconLockClosed size={13} color="#b45309" /> No Key
+                            <IconLockClosed size={13} color="#b45309" /> Tanpa Kunci
                         </div>
                     ) : !decryptedData && onDecrypt && (
                         <button
@@ -185,8 +185,8 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
                             style={{ fontSize: "0.78rem", padding: "8px 16px" }}
                         >
                             {decrypting
-                                ? <><IconLoader size={14} /> Decrypting...</>
-                                : <><IconUnlock size={14} /> Decrypt</>
+                                ? <><IconLoader size={14} /> Mendekripsi...</>
+                                : <><IconUnlock size={14} /> Dekripsi</>
                             }
                         </button>
                     )}
@@ -198,8 +198,8 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
                                 style={{ fontSize: "0.78rem", padding: "8px 14px" }}
                             >
                                 {expanded
-                                    ? <><IconEyeOff size={14} /> Close</>
-                                    : <><IconEye size={14} /> View</>
+                                    ? <><IconEyeOff size={14} /> Tutup</>
+                                    : <><IconEye size={14} /> Lihat</>
                                 }
                             </button>
                             <button
@@ -207,7 +207,7 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
                                 className="btn btn-ghost"
                                 style={{ fontSize: "0.78rem", padding: "8px 14px" }}
                             >
-                                <IconDownload size={14} /> Download
+                                <IconDownload size={14} /> Unduh
                             </button>
                         </>
                     )}
@@ -223,7 +223,7 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
                         fontWeight: 600, background: "#f0fdf4", color: "#16a34a",
                         border: "1px solid #bbf7d0",
                     }}>
-                        <IconLock size={11} color="#16a34a" /> Decrypted
+                        <IconLock size={11} color="#16a34a" /> Terdekripsi
                     </span>
                 </div>
             )}
@@ -246,7 +246,7 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
                                 }}
                             />
                             <p style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "8px" }}>
-                                {record.fileName} — Decrypted
+                                {record.fileName} — Terdekripsi
                             </p>
                         </div>
                     ) : decryptedData.fileType === "application/pdf" ? (
@@ -256,7 +256,7 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
                         }}>
                             <IconFilePdf size={40} color="#e11d48" />
                             <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#0f172a", marginTop: "10px" }}>{record.fileName}</p>
-                            <p style={{ fontSize: "0.75rem", color: "#94a3b8", marginBottom: "14px" }}>PDF Document — Decrypted</p>
+                            <p style={{ fontSize: "0.75rem", color: "#94a3b8", marginBottom: "14px" }}>Dokumen PDF — Terdekripsi</p>
                             <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
                                 <a
                                     href={decryptedData.url}
@@ -265,10 +265,10 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
                                     className="btn btn-primary"
                                     style={{ fontSize: "0.78rem" }}
                                 >
-                                    <IconExternalLink size={14} /> Open PDF
+                                    <IconExternalLink size={14} /> Buka PDF
                                 </a>
                                 <button onClick={handleDownload} className="btn btn-ghost" style={{ fontSize: "0.78rem" }}>
-                                    <IconDownload size={14} /> Download
+                                    <IconDownload size={14} /> Unduh
                                 </button>
                             </div>
                         </div>
@@ -277,9 +277,9 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
                             background: "#f8fafc", borderRadius: "10px",
                             padding: "20px", textAlign: "center",
                         }}>
-                            <p style={{ fontSize: "0.85rem", color: "#64748b", marginBottom: "8px" }}>File decrypted successfully</p>
+                            <p style={{ fontSize: "0.85rem", color: "#64748b", marginBottom: "8px" }}>File berhasil didekripsi</p>
                             <button onClick={handleDownload} className="btn btn-primary" style={{ fontSize: "0.78rem" }}>
-                                <IconDownload size={14} /> Download File
+                                <IconDownload size={14} /> Unduh File
                             </button>
                         </div>
                     )}

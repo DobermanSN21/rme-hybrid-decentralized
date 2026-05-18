@@ -102,7 +102,7 @@ export default function LandingPage() {
                             {
                                 icon: "🔐",
                                 title: "Medical Encryption",
-                                desc: "Medical files are encrypted with AES-256-GCM before storage. Only the owner can read them.",
+                                desc: "Medical files are encrypted with AES-256-CBC before storage. Only the owner can read them.",
                                 color: "#14b8a6",
                             },
                             {
