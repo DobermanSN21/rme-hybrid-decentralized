@@ -69,6 +69,9 @@ contract MedicalRecordVault {
     mapping(address => mapping(address => bool)) public accessList;
     mapping(address => address[]) private authorizedDoctors;
     mapping(address => string[]) private patientCids;
+    mapping(address => mapping(address => string[])) private doctorAccessibleCids;
+
+    address[] private allPatients;
 
     // ================================================================
     //                             EVENTS
@@ -83,6 +86,7 @@ contract MedicalRecordVault {
     event RecordRejected(address indexed patient, uint256 recordIndex, string cid);
     event AccessGranted(address indexed patient, address indexed doctor, string cid);
     event AccessRevoked(address indexed patient, address indexed doctor);
+    event AccessRevokedForCid(address indexed patient, address indexed doctor, string cid);
 
     // ================================================================
     //                           MODIFIERS
@@ -140,6 +144,7 @@ contract MedicalRecordVault {
         roles[msg.sender] = Role.PATIENT;
         publicKeys[msg.sender] = _publicKey;
         displayNames[msg.sender] = _name;
+        allPatients.push(msg.sender);
 
         emit UserRegistered(msg.sender, Role.PATIENT);
     }
@@ -319,6 +324,17 @@ contract MedicalRecordVault {
 
         encryptedKeys[_cid][_doctor] = _encryptedKeyForDoctor;
 
+        // Track which CIDs this doctor can access (dedup)
+        bool alreadyTracked = false;
+        string[] storage accessible = doctorAccessibleCids[msg.sender][_doctor];
+        for (uint256 i = 0; i < accessible.length; i++) {
+            if (keccak256(bytes(accessible[i])) == keccak256(bytes(_cid))) {
+                alreadyTracked = true;
+                break;
+            }
+        }
+        if (!alreadyTracked) accessible.push(_cid);
+
         emit AccessGranted(msg.sender, _doctor, _cid);
     }
 
@@ -326,13 +342,37 @@ contract MedicalRecordVault {
         require(accessList[msg.sender][_doctor], "Doctor does not have access");
         accessList[msg.sender][_doctor] = false;
 
-        // Clear all encrypted keys for this doctor so old keys can't be reused
         string[] storage cids = patientCids[msg.sender];
         for (uint256 i = 0; i < cids.length; i++) {
             delete encryptedKeys[cids[i]][_doctor];
         }
+        delete doctorAccessibleCids[msg.sender][_doctor];
 
         emit AccessRevoked(msg.sender, _doctor);
+    }
+
+    function revokeAccessForCid(address _doctor, string calldata _cid) external onlyPatient {
+        require(accessList[msg.sender][_doctor], "Doctor does not have access");
+        require(bytes(encryptedKeys[_cid][_doctor]).length > 0, "Doctor does not have access to this record");
+
+        delete encryptedKeys[_cid][_doctor];
+
+        // Remove from tracking array
+        string[] storage accessible = doctorAccessibleCids[msg.sender][_doctor];
+        for (uint256 i = 0; i < accessible.length; i++) {
+            if (keccak256(bytes(accessible[i])) == keccak256(bytes(_cid))) {
+                accessible[i] = accessible[accessible.length - 1];
+                accessible.pop();
+                break;
+            }
+        }
+
+        // If no more accessible CIDs, revoke overall access flag
+        if (doctorAccessibleCids[msg.sender][_doctor].length == 0) {
+            accessList[msg.sender][_doctor] = false;
+        }
+
+        emit AccessRevokedForCid(msg.sender, _doctor, _cid);
     }
 
     // ================================================================
@@ -432,6 +472,24 @@ contract MedicalRecordVault {
             if (all[i].status == RecordStatus.PENDING) count++;
         }
         return count;
+    }
+
+    /**
+     * @notice Daftar CID yang dapat diakses oleh dokter tertentu (dari sudut pandang pasien)
+     */
+    function getAccessibleCidsForDoctor(address _doctor) external view onlyPatient returns (string[] memory) {
+        return doctorAccessibleCids[msg.sender][_doctor];
+    }
+
+    /**
+     * @notice Daftar semua pasien terdaftar beserta nama mereka (dokter only)
+     */
+    function getPatientList() external view onlyDoctor returns (address[] memory addrs, string[] memory names) {
+        addrs = allPatients;
+        names = new string[](allPatients.length);
+        for (uint256 i = 0; i < allPatients.length; i++) {
+            names[i] = displayNames[allPatients[i]];
+        }
     }
 
     /**

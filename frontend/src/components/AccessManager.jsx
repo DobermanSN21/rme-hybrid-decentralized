@@ -6,7 +6,8 @@ import { isAddress } from "ethers";
 import { useWallet } from "../context/WalletContext";
 import ConfirmDialog from "./ConfirmDialog";
 import {
-    grantAccess, revokeAccess, getAuthorizedDoctors,
+    grantAccess, revokeAccess, revokeAccessForCid,
+    getAuthorizedDoctors, getAccessibleCidsForDoctor,
     getEncryptedKey, getPublicKey, getMyCids,
     getMyRecords, getPendingRecords,
 } from "../services/blockchain";
@@ -46,6 +47,9 @@ export default function AccessManager() {
     // Revoke state
     const [doctors, setDoctors] = useState([]);
     const [revokeTarget, setRevokeTarget] = useState("");
+    const [accessibleCids, setAccessibleCids] = useState([]);
+    const [accessibleLoading, setAccessibleLoading] = useState(false);
+    const [revokingCid, setRevokingCid] = useState(null);
 
     // Loading
     const [loading, setLoading] = useState(false);
@@ -66,6 +70,16 @@ export default function AccessManager() {
         document.addEventListener("mousedown", h);
         return () => document.removeEventListener("mousedown", h);
     }, []);
+
+    // Load accessible CIDs when a doctor is selected for revoke
+    useEffect(() => {
+        if (!revokeTarget || !account) { setAccessibleCids([]); return; }
+        setAccessibleLoading(true);
+        getAccessibleCidsForDoctor(account.signer, revokeTarget)
+            .then(cids => setAccessibleCids([...cids]))
+            .catch(() => setAccessibleCids([]))
+            .finally(() => setAccessibleLoading(false));
+    }, [revokeTarget, account]);
 
     const loadData = async () => {
         setLoading(true);
@@ -120,19 +134,44 @@ export default function AccessManager() {
         finally { setGrantLoading(false); }
     };
 
-    const handleRevoke = (doctor) => {
+    const handleRevokeAll = (doctor) => {
         setConfirmDialog({
-            title: "Revoke Doctor Access",
-            message: "This doctor will immediately lose access to all your medical records.",
-            confirmLabel: "Revoke Access",
+            title: "Cabut Semua Akses Dokter",
+            message: "Dokter ini akan langsung kehilangan akses ke semua rekam medis Anda.",
+            confirmLabel: "Cabut Semua Akses",
             variant: "danger",
-            details: [{ label: "Doctor", value: doctor, mono: true }],
+            details: [{ label: "Dokter", value: getName(doctor) || short(doctor), mono: false }, { label: "Wallet", value: doctor, mono: true }],
             onConfirm: async () => {
                 setConfirmDialog(null);
-                try { await revokeAccess(account.signer, doctor); setRevokeTarget(""); await loadData(); }
-                catch (err) { setError(err.message || "Failed to revoke access."); }
+                try {
+                    await revokeAccess(account.signer, doctor);
+                    setRevokeTarget("");
+                    setAccessibleCids([]);
+                    await loadData();
+                } catch (err) { setError(err.message || "Failed to revoke access."); }
             },
         });
+    };
+
+    const handleRevokeOneCid = async (cid) => {
+        setRevokingCid(cid);
+        setError(null);
+        try {
+            await revokeAccessForCid(account.signer, revokeTarget, cid);
+            // Refresh accessible cids and doctor list
+            const [newCids, newDoctors] = await Promise.all([
+                getAccessibleCidsForDoctor(account.signer, revokeTarget).catch(() => []),
+                getAuthorizedDoctors(account.signer).catch(() => []),
+            ]);
+            setAccessibleCids([...newCids]);
+            const activeDoctors = [...new Set(newDoctors)];
+            setDoctors(activeDoctors);
+            // If this doctor no longer has any access, deselect them
+            if (!activeDoctors.includes(revokeTarget)) {
+                setRevokeTarget("");
+            }
+        } catch (err) { setError(err.message || "Failed to revoke record access."); }
+        finally { setRevokingCid(null); }
     };
 
     const allAddresses = [...knownDoctors, ...doctors];
@@ -141,7 +180,6 @@ export default function AccessManager() {
 
     const short = (a) => `${a.slice(0, 8)}...${a.slice(-6)}`;
 
-    // ── helpers for file icons ──────────────────────────────────
     const FileIcon = ({ fileType, size = 15, color }) => {
         const c = color || (fileType?.startsWith("image/") ? "#2E7DDB" : fileType === "application/pdf" ? "#e11d48" : "#94a3b8");
         if (fileType?.startsWith("image/")) return <Ico size={size} color={c} d={<><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></>}/>;
@@ -285,7 +323,7 @@ export default function AccessManager() {
                                                                 {d?.fileName||`Record #${i+1}`}
                                                             </div>
                                                             <div style={{ fontSize:"0.65rem",color:"#94a3b8",marginTop:"1px" }}>
-                                                                {d?.fileType}{d?.timestamp?` · ${new Date(d.timestamp*1000).toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}` : ""}
+                                                                {d?.fileType}{d?.timestamp?` · ${new Date(d.timestamp*1000).toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"numeric"})}` : ""}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -298,7 +336,7 @@ export default function AccessManager() {
                         )}
                         {selectedCids.size > 0 && (
                             <p style={{ fontSize:"0.68rem",color:"#64748b",marginTop:"5px" }}>
-                                {selectedCids.size} record{selectedCids.size>1?"s":""} · {selectedCids.size} blockchain transaction{selectedCids.size>1?"s":""}
+                                {selectedCids.size} rekam medis · {selectedCids.size} transaksi blockchain
                             </p>
                         )}
                     </div>
@@ -306,7 +344,7 @@ export default function AccessManager() {
                     {/* Note */}
                     <div style={{ display:"flex",gap:"8px",padding:"10px 13px",borderRadius:"10px",background:"#fffbeb",border:"1px solid #fde68a" }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0,marginTop:"1px" }}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
-                        <span style={{ fontSize:"0.7rem",color:"#92400e",lineHeight:1.5 }}>Doctor can <em>see metadata</em> of all approved records, but can only <em>decrypt</em> the records you select.</span>
+                        <span style={{ fontSize:"0.7rem",color:"#92400e",lineHeight:1.5 }}>Dokter hanya dapat <em>mendekripsi</em> rekam medis yang Anda pilih. Metadata tetap dapat dilihat.</span>
                     </div>
 
                     {/* Grant button */}
@@ -314,8 +352,8 @@ export default function AccessManager() {
                         <button onClick={handleGrant} disabled={grantLoading || !effectiveDoctorAddress || selectedCids.size===0 || !addressValid} className="btn btn-primary"
                             style={{ fontSize:"0.85rem",padding:"10px 24px" }}>
                             {grantLoading
-                                ? <><IconLoader size={14}/> Encrypting...</>
-                                : <><Ico size={14} color="currentColor" d={<><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></>}/> Grant Access{selectedCids.size>1?` (${selectedCids.size})`:""}
+                                ? <><IconLoader size={14}/> Mengenkripsi...</>
+                                : <><Ico size={14} color="currentColor" d={<><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></>}/> Berikan Akses{selectedCids.size>1?` (${selectedCids.size})`:""}
                                 </>
                             }
                         </button>
@@ -330,19 +368,19 @@ export default function AccessManager() {
                         <Ico size={16} color="#dc2626" d={<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" x2="22" y1="8" y2="13"/><line x1="22" x2="17" y1="8" y2="13"/></>}/>
                     </div>
                     <div style={{ flex:1 }}>
-                        <h3 style={{ fontSize:"0.95rem",fontWeight:700,color:"#0f172a",margin:0 }}>Doctors with Active Access</h3>
-                        <p style={{ fontSize:"0.72rem",color:"#94a3b8",margin:0 }}>Click a doctor to select, then revoke</p>
+                        <h3 style={{ fontSize:"0.95rem",fontWeight:700,color:"#0f172a",margin:0 }}>Dokter dengan Akses Aktif</h3>
+                        <p style={{ fontSize:"0.72rem",color:"#94a3b8",margin:0 }}>Pilih dokter untuk melihat rekam medis yang dapat mereka akses</p>
                     </div>
                     {!loading && doctors.length > 0 && (
                         <span style={{ fontSize:"0.7rem",fontWeight:700,padding:"3px 10px",borderRadius:"20px",background:"#f0fdf9",color:"#0d9488",border:"1px solid #99f6e4",flexShrink:0 }}>
-                            {doctors.length} active
+                            {doctors.length} aktif
                         </span>
                     )}
                 </div>
 
                 {loading ? (
                     <div style={{ display:"flex",alignItems:"center",gap:"8px",padding:"16px 0",color:"#64748b",fontSize:"0.82rem" }}>
-                        <IconLoader size={15}/> Loading...
+                        <IconLoader size={15}/> Memuat...
                     </div>
                 ) : doctors.length === 0 ? (
                     <div style={{ textAlign:"center",padding:"28px 16px" }}>
@@ -350,45 +388,92 @@ export default function AccessManager() {
                             <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
                             <path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                         </svg>
-                        <p style={{ fontSize:"0.82rem",color:"#94a3b8",margin:0 }}>No doctors have been granted access yet</p>
+                        <p style={{ fontSize:"0.82rem",color:"#94a3b8",margin:0 }}>Belum ada dokter yang diberikan akses</p>
                     </div>
                 ) : (
                     <div style={{ display:"flex",flexDirection:"column",gap:"6px" }}>
+                        {/* Doctor list */}
                         {doctors.map(doc => {
                             const sel = revokeTarget === doc;
                             return (
                                 <div key={doc} onClick={() => setRevokeTarget(sel ? "" : doc)}
-                                    style={{ display:"flex",alignItems:"center",gap:"12px",padding:"11px 14px",borderRadius:"10px",border:`1.5px solid ${sel?"#fca5a5":"#e2e8f0"}`,background:sel?"#fff5f5":"#f8fafc",cursor:"pointer",transition:"all 0.15s",userSelect:"none" }}>
-                                    <div style={{ width:"32px",height:"32px",borderRadius:"8px",background:sel?"#fee2e2":"#f0fdf9",border:`1px solid ${sel?"#fca5a5":"#99f6e4"}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.15s" }}>
-                                        <Ico size={15} color={sel?"#dc2626":"#0d9488"} d={<><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6 6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></>}/>
+                                    style={{ display:"flex",alignItems:"center",gap:"12px",padding:"11px 14px",borderRadius:"10px",border:`1.5px solid ${sel?"#93c5fd":"#e2e8f0"}`,background:sel?"#eff6ff":"#f8fafc",cursor:"pointer",transition:"all 0.15s",userSelect:"none" }}>
+                                    <div style={{ width:"32px",height:"32px",borderRadius:"8px",background:sel?"#dbeafe":"#f0fdf9",border:`1px solid ${sel?"#93c5fd":"#99f6e4"}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.15s" }}>
+                                        <Ico size={15} color={sel?"#2563eb":"#0d9488"} d={<><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6 6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></>}/>
                                     </div>
                                     <div style={{ flex:1,minWidth:0 }}>
-                                        <div style={{ fontSize:"0.8rem",fontWeight:600,color:sel?"#dc2626":"#334155" }}>{getName(doc) || short(doc)}</div>
+                                        <div style={{ fontSize:"0.8rem",fontWeight:600,color:sel?"#1e40af":"#334155" }}>{getName(doc) || short(doc)}</div>
                                         <div style={{ fontSize:"0.63rem",color:"#94a3b8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontFamily:"monospace",marginTop:"1px" }}>{doc}</div>
                                     </div>
-                                    <span style={{ fontSize:"0.65rem",fontWeight:700,padding:"2px 8px",borderRadius:"7px",background:sel?"#fee2e2":"#f0fdf4",color:sel?"#dc2626":"#16a34a",border:`1px solid ${sel?"#fca5a5":"#bbf7d0"}`,flexShrink:0 }}>
-                                        {sel?"Selected":"Active"}
-                                    </span>
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={sel?"#2563eb":"#cbd5e1"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform:sel?"rotate(180deg)":"none",transition:"transform 0.2s",flexShrink:0 }}><polyline points="6 9 12 15 18 9"/></svg>
                                 </div>
                             );
                         })}
 
-                        {/* Revoke action panel */}
-                        <div style={{ marginTop:"6px",padding:"13px 16px",borderRadius:"10px",border:`1.5px solid ${revokeTarget?"#fecaca":"#f1f5f9"}`,background:revokeTarget?"#fff5f5":"#f8fafc",transition:"all 0.2s",minHeight:"52px",display:"flex",alignItems:"center" }}>
-                            {revokeTarget ? (
-                                <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",gap:"12px",width:"100%",flexWrap:"wrap" }}>
+                        {/* Expanded panel: accessible records + per-record revoke */}
+                        {revokeTarget && (
+                            <div style={{ marginTop:"4px",borderRadius:"12px",border:"1.5px solid #e2e8f0",background:"white",overflow:"hidden",animation:"slideDown 0.15s ease" }}>
+                                {/* Panel header */}
+                                <div style={{ padding:"12px 16px",borderBottom:"1px solid #f1f5f9",background:"#f8fafc",display:"flex",alignItems:"center",justifyContent:"space-between",gap:"10px" }}>
                                     <div>
-                                        <div style={{ fontSize:"0.68rem",fontWeight:700,color:"#dc2626",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:"2px" }}>Revoke access for</div>
-                                        <div style={{ fontSize:"0.78rem",color:"#7f1d1d",fontWeight:600 }}>{getName(revokeTarget) || short(revokeTarget)}</div>
+                                        <div style={{ fontSize:"0.68rem",fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:"0.06em" }}>Rekam Medis yang Dapat Diakses</div>
+                                        <div style={{ fontSize:"0.78rem",fontWeight:600,color:"#1e40af",marginTop:"2px" }}>{getName(revokeTarget) || short(revokeTarget)}</div>
                                     </div>
-                                    <button onClick={() => handleRevoke(revokeTarget)} className="btn btn-danger" style={{ fontSize:"0.8rem",padding:"8px 18px",flexShrink:0 }}>
-                                        <Ico size={13} color="white" d={<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" x2="22" y1="8" y2="13"/><line x1="22" x2="17" y1="8" y2="13"/></>}/> Revoke Access
-                                    </button>
+                                    {!accessibleLoading && accessibleCids.length > 0 && (
+                                        <button
+                                            onClick={() => handleRevokeAll(revokeTarget)}
+                                            className="btn btn-danger"
+                                            style={{ fontSize:"0.75rem",padding:"6px 14px",flexShrink:0 }}>
+                                            <Ico size={12} color="white" d={<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" x2="22" y1="8" y2="13"/><line x1="22" x2="17" y1="8" y2="13"/></>}/>
+                                            Cabut Semua
+                                        </button>
+                                    )}
                                 </div>
-                            ) : (
-                                <p style={{ fontSize:"0.75rem",color:"#94a3b8",margin:0,textAlign:"center",width:"100%" }}>Select a doctor above to revoke their access</p>
-                            )}
-                        </div>
+
+                                {/* Record list */}
+                                {accessibleLoading ? (
+                                    <div style={{ display:"flex",alignItems:"center",gap:"8px",padding:"18px 16px",color:"#64748b",fontSize:"0.82rem" }}>
+                                        <IconLoader size={14}/> Memuat rekam medis...
+                                    </div>
+                                ) : accessibleCids.length === 0 ? (
+                                    <div style={{ padding:"18px 16px",textAlign:"center" }}>
+                                        <div style={{ fontSize:"0.78rem",color:"#94a3b8" }}>Dokter ini tidak memiliki akses ke rekam medis manapun</div>
+                                        <div style={{ fontSize:"0.68rem",color:"#cbd5e1",marginTop:"4px" }}>Akses sudah dicabut atau belum pernah diberikan via Manage Access</div>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        {accessibleCids.map((cid, i) => {
+                                            const d = cidDetailsMap[cid];
+                                            const isRevoking = revokingCid === cid;
+                                            return (
+                                                <div key={i} style={{ display:"flex",alignItems:"center",gap:"12px",padding:"11px 16px",borderBottom:i<accessibleCids.length-1?"1px solid #f8fafc":"none",transition:"background 0.1s" }}>
+                                                    <div style={{ width:"32px",height:"32px",borderRadius:"8px",background:d?.fileType?.startsWith("image/")?"#eff6ff":d?.fileType==="application/pdf"?"#fff1f2":"#f8fafc",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                                                        <FileIcon fileType={d?.fileType} size={15}/>
+                                                    </div>
+                                                    <div style={{ flex:1,minWidth:0 }}>
+                                                        <div style={{ fontSize:"0.8rem",fontWeight:600,color:"#334155",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>
+                                                            {d?.fileName || `Rekam Medis #${i+1}`}
+                                                        </div>
+                                                        <div style={{ fontSize:"0.63rem",color:"#94a3b8",marginTop:"1px" }}>
+                                                            {d?.fileType || "—"}{d?.timestamp ? ` · ${new Date(d.timestamp*1000).toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"numeric"})}` : ""}
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleRevokeOneCid(cid)}
+                                                        disabled={!!revokingCid}
+                                                        style={{ flexShrink:0,display:"inline-flex",alignItems:"center",gap:"5px",padding:"5px 12px",borderRadius:"8px",border:"1.5px solid #fca5a5",background:isRevoking?"#fee2e2":"white",color:"#dc2626",fontSize:"0.72rem",fontWeight:700,cursor:revokingCid?"not-allowed":"pointer",opacity:revokingCid&&!isRevoking?0.5:1,transition:"all 0.15s",fontFamily:"inherit" }}>
+                                                        {isRevoking ? <><IconLoader size={11}/> Mencabut...</> : <>
+                                                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                                            Cabut
+                                                        </>}
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

@@ -300,9 +300,27 @@ export async function revokeAccess(signer, doctorAddress) {
     return tx;
 }
 
+export async function revokeAccessForCid(signer, doctorAddress, cid) {
+    const contract = getContract(signer);
+    const tx = await contract.revokeAccessForCid(doctorAddress, cid);
+    await tx.wait();
+    return tx;
+}
+
 export async function getAuthorizedDoctors(signer) {
     const contract = getContract(signer);
     return contract.getAuthorizedDoctors();
+}
+
+export async function getAccessibleCidsForDoctor(signer, doctorAddress) {
+    const contract = getContract(signer);
+    return contract.getAccessibleCidsForDoctor(doctorAddress);
+}
+
+export async function getPatientList(signer) {
+    const contract = getContract(signer);
+    const [addrs, names] = await contract.getPatientList();
+    return addrs.map((addr, i) => ({ address: addr, name: names[i] || "" }));
 }
 
 // ── Encrypted Key ────────────────────────────────────────────────────

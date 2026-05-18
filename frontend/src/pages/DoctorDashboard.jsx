@@ -15,6 +15,7 @@ import {
     getPublicKey as getBlockchainPublicKey,
     getEncryptedKey,
     getSubmittedByDoctor,
+    getPatientList,
 } from "../services/blockchain";
 import {
     generateAESKey,
@@ -73,6 +74,15 @@ export default function DoctorDashboard() {
     const [keyStatusMap, setKeyStatusMap] = useState({}); // cid -> true/false (has encrypted key)
     const [searchLoading, setSearchLoading] = useState(false);
 
+    // Patient name search
+    const [patientList, setPatientList] = useState([]);
+    const [patientListLoading, setPatientListLoading] = useState(false);
+    const [nameQuery, setNameQuery] = useState("");
+    const [patientDropOpen, setPatientDropOpen] = useState(false);
+    const [selectedPatient, setSelectedPatient] = useState(null);
+    const [manualAddressMode, setManualAddressMode] = useState(false);
+    const patientDropRef = useRef(null);
+
     // Submissions tab
     const [submissions, setSubmissions] = useState([]);
     const [submissionsLoading, setSubmissionsLoading] = useState(false);
@@ -110,6 +120,41 @@ export default function DoctorDashboard() {
         const interval = setInterval(loadSubmissions, 30_000);
         return () => clearInterval(interval);
     }, [account]);
+
+    // Load patient list when view tab is opened (once)
+    useEffect(() => {
+        if (activeTab !== "view" || !account || patientList.length > 0) return;
+        setPatientListLoading(true);
+        getPatientList(account.signer)
+            .then(list => setPatientList(list))
+            .catch(err => console.warn("getPatientList:", err))
+            .finally(() => setPatientListLoading(false));
+    }, [activeTab, account]);
+
+    // Close patient dropdown on outside click
+    useEffect(() => {
+        const h = (e) => {
+            if (patientDropRef.current && !patientDropRef.current.contains(e.target)) setPatientDropOpen(false);
+        };
+        document.addEventListener("mousedown", h);
+        return () => document.removeEventListener("mousedown", h);
+    }, []);
+
+    const filteredPatients = patientList.filter(p =>
+        !nameQuery ||
+        p.name.toLowerCase().includes(nameQuery.toLowerCase()) ||
+        p.address.toLowerCase().includes(nameQuery.toLowerCase())
+    );
+
+    const handleSelectPatient = (patient) => {
+        setSelectedPatient(patient);
+        setSearchAddress(patient.address);
+        setPatientDropOpen(false);
+        setNameQuery(patient.name || patient.address);
+        setRecords([]);
+        setDecryptedMap({});
+        setKeyStatusMap({});
+    };
 
     // Handle file selection
     const handleFileSelect = (e) => {
@@ -607,31 +652,113 @@ export default function DoctorDashboard() {
 
                     {/* Search */}
                     <div className="glass-card" style={{ marginBottom: "24px", padding: "24px" }}>
-                        <h3 style={{ fontSize: "0.88rem", fontWeight: 700, color: "#0f172a", marginBottom: "14px" }}>Search Patient Records</h3>
-                        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                            <input
-                                type="text"
-                                value={searchAddress}
-                                onChange={(e) => setSearchAddress(e.target.value)}
-                                placeholder="Patient wallet address (0x...)"
-                                className="input-field"
-                                style={{ flex: "1 1 200px", minWidth: 0 }}
-                            />
-                            <button
-                                onClick={handleSearch}
-                                disabled={searchLoading || !searchAddress}
-                                className="btn btn-primary"
-                                style={{ flex:"0 0 auto",fontSize:"0.82rem" }}
-                            >
-                                {searchLoading
-                                    ? <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-                                    : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg> Search</>}
-                            </button>
-                        </div>
-                        {searchAddress && !isAddress(searchAddress) && (
-                            <div style={{ display:"flex",alignItems:"center",gap:"5px",marginTop:"8px" }}>
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
-                                <span style={{ fontSize:"0.75rem",color:"#e11d48" }}>Invalid Ethereum address format</span>
+                        <h3 style={{ fontSize: "0.88rem", fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}>Cari Pasien</h3>
+                        <p style={{ fontSize:"0.72rem",color:"#94a3b8",marginBottom:"16px" }}>Cari berdasarkan nama atau pilih dari daftar pasien terdaftar</p>
+
+                        {!manualAddressMode ? (
+                            <div ref={patientDropRef} style={{ position:"relative" }}>
+                                {/* Search input */}
+                                <div style={{ display:"flex",gap:"10px",flexWrap:"wrap" }}>
+                                    <div style={{ flex:"1 1 200px",position:"relative" }}>
+                                        <div style={{ position:"absolute",left:"11px",top:"50%",transform:"translateY(-50%)",pointerEvents:"none" }}>
+                                            {patientListLoading
+                                                ? <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                                                : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                                            }
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={nameQuery}
+                                            onChange={(e) => { setNameQuery(e.target.value); setPatientDropOpen(true); setSelectedPatient(null); setSearchAddress(""); }}
+                                            onFocus={() => setPatientDropOpen(true)}
+                                            placeholder="Ketik nama pasien..."
+                                            className="input-field"
+                                            style={{ paddingLeft:"34px",minWidth:0 }}
+                                        />
+                                        {nameQuery && (
+                                            <button onClick={() => { setNameQuery(""); setSelectedPatient(null); setSearchAddress(""); setPatientDropOpen(false); setRecords([]); }}
+                                                style={{ position:"absolute",right:"10px",top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"#94a3b8",padding:"2px",display:"flex",alignItems:"center" }}>
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                            </button>
+                                        )}
+                                    </div>
+                                    <button onClick={handleSearch} disabled={searchLoading || !searchAddress} className="btn btn-primary" style={{ flex:"0 0 auto",fontSize:"0.82rem" }}>
+                                        {searchLoading
+                                            ? <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                                            : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg> Cari Rekam Medis</>}
+                                    </button>
+                                </div>
+
+                                {/* Dropdown */}
+                                {patientDropOpen && (
+                                    <div style={{ position:"absolute",top:"calc(100% + 6px)",left:0,right:0,zIndex:200,background:"white",borderRadius:"12px",border:"1.5px solid #e2e8f0",boxShadow:"0 8px 24px rgba(0,0,0,0.12)",overflow:"hidden",maxHeight:"260px",overflowY:"auto" }}>
+                                        {patientListLoading ? (
+                                            <div style={{ padding:"16px",textAlign:"center",color:"#94a3b8",fontSize:"0.82rem",display:"flex",alignItems:"center",gap:"8px",justifyContent:"center" }}>
+                                                <svg className="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                                                Memuat daftar pasien...
+                                            </div>
+                                        ) : filteredPatients.length === 0 ? (
+                                            <div style={{ padding:"16px",textAlign:"center",color:"#94a3b8",fontSize:"0.82rem" }}>
+                                                {nameQuery ? `Tidak ada pasien dengan nama "${nameQuery}"` : "Belum ada pasien terdaftar"}
+                                            </div>
+                                        ) : filteredPatients.map((p, i) => {
+                                            const sel = selectedPatient?.address === p.address;
+                                            return (
+                                                <div key={i} onClick={() => handleSelectPatient(p)}
+                                                    style={{ display:"flex",alignItems:"center",gap:"12px",padding:"11px 14px",cursor:"pointer",background:sel?"#eff6ff":"white",borderBottom:"1px solid #f8fafc",transition:"background 0.1s" }}
+                                                    onMouseEnter={e=>{ if(!sel) e.currentTarget.style.background="#f8fafc"; }}
+                                                    onMouseLeave={e=>{ e.currentTarget.style.background=sel?"#eff6ff":"white"; }}>
+                                                    <div style={{ width:"32px",height:"32px",borderRadius:"8px",background:sel?"#dbeafe":"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={sel?"#2563eb":"#64748b"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                                    </div>
+                                                    <div style={{ flex:1,minWidth:0 }}>
+                                                        <div style={{ fontSize:"0.82rem",fontWeight:600,color:sel?"#1e40af":"#334155" }}>{p.name || "—"}</div>
+                                                        <div style={{ fontSize:"0.63rem",color:"#94a3b8",fontFamily:"monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:"1px" }}>{p.address}</div>
+                                                    </div>
+                                                    {sel && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {/* Selected patient chip */}
+                                {selectedPatient && (
+                                    <div style={{ marginTop:"8px",display:"flex",alignItems:"center",gap:"8px",padding:"8px 12px",borderRadius:"10px",background:"#eff6ff",border:"1px solid #bfdbfe" }}>
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                        <div style={{ flex:1,minWidth:0 }}>
+                                            <span style={{ fontSize:"0.78rem",fontWeight:700,color:"#1e40af" }}>{selectedPatient.name}</span>
+                                            <span style={{ fontFamily:"monospace",fontSize:"0.65rem",color:"#64748b",marginLeft:"8px",wordBreak:"break-all" }}>{selectedPatient.address}</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Manual address fallback */}
+                                <button onClick={() => setManualAddressMode(true)} style={{ marginTop:"8px",background:"none",border:"none",fontSize:"0.7rem",color:"#94a3b8",cursor:"pointer",padding:0,fontFamily:"inherit",display:"flex",alignItems:"center",gap:"4px" }}>
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                                    Masukkan alamat wallet secara manual
+                                </button>
+                            </div>
+                        ) : (
+                            <div>
+                                <button onClick={() => { setManualAddressMode(false); setSearchAddress(""); }} style={{ fontSize:"0.72rem",color:"#2E7DDB",background:"none",border:"none",cursor:"pointer",padding:"0 0 8px",fontFamily:"inherit",display:"flex",alignItems:"center",gap:"4px" }}>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                                    Kembali ke pencarian nama
+                                </button>
+                                <div style={{ display:"flex",gap:"10px",flexWrap:"wrap" }}>
+                                    <input type="text" value={searchAddress} onChange={(e) => setSearchAddress(e.target.value)} placeholder="0x..." className="input-field" style={{ flex:"1 1 200px",minWidth:0,borderColor:searchAddress&&!isAddress(searchAddress)?"#fca5a5":undefined }} autoFocus/>
+                                    <button onClick={handleSearch} disabled={searchLoading || !searchAddress || !isAddress(searchAddress)} className="btn btn-primary" style={{ flex:"0 0 auto",fontSize:"0.82rem" }}>
+                                        {searchLoading
+                                            ? <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                                            : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg> Cari</>}
+                                    </button>
+                                </div>
+                                {searchAddress && !isAddress(searchAddress) && (
+                                    <div style={{ display:"flex",alignItems:"center",gap:"5px",marginTop:"8px" }}>
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e11d48" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+                                        <span style={{ fontSize:"0.75rem",color:"#e11d48" }}>Format alamat tidak valid</span>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
