@@ -129,8 +129,8 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
                 </div>
             )}
             {/* Header */}
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "14px", flexWrap: "wrap" }}>
-                <div style={{ flex: 1, minWidth: "200px" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                     {/* File info row */}
                     <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px" }}>
                         <div style={{
@@ -141,7 +141,7 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
                             {getFileIcon(record.fileType)}
                         </div>
                         <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "280px" }} title={record.fileName}>
+                            <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={record.fileName}>
                                 {record.fileName || "Unknown File"}
                             </div>
                             <div style={{ fontSize: "0.73rem", color: "#94a3b8", marginTop: "2px" }}>
@@ -172,7 +172,7 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
                 </div>
 
                 {/* Action buttons */}
-                <div style={{ display: "flex", gap: "8px", flexShrink: 0, alignItems: "flex-start" }}>
+                <div style={{ display: "flex", gap: "8px", flexShrink: 0, alignItems: "flex-start", flexWrap: "wrap" }}>
                     {!decryptedData && onDecrypt && keyAvailable === false ? (
                         <div style={{ display:"flex",alignItems:"center",gap:"6px",padding:"7px 14px",borderRadius:"9px",background:"#fffbeb",border:"1.5px solid #fde68a",fontSize:"0.75rem",fontWeight:600,color:"#b45309",whiteSpace:"nowrap" }}>
                             <IconLockClosed size={13} color="#b45309" /> Tanpa Kunci

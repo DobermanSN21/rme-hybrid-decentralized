@@ -232,9 +232,9 @@ export default function PatientDashboard() {
                 <div style={{ display:"flex",alignItems:"center",gap:"8px",padding:"12px 16px",borderRadius:"10px",background:"#fffbeb",border:"1px solid #fde68a",marginBottom:"24px",flexWrap:"wrap" }} className="animate-fade-in">
                     <IconAlertTriangle size={15} color="#d97706"/>
                     <span style={{ fontSize:"0.78rem",fontWeight:600,color:"#b45309",flex:1 }}>Private key belum diimpor — dekripsi tidak tersedia</span>
-                    <div style={{ display:"flex",gap:"6px",alignItems:"center" }}>
-                        <input type="password" value={keyInput} onChange={e=>setKeyInput(e.target.value)} placeholder="Tempel key..." className="input-field" style={{ width:"200px",fontSize:"0.75rem",padding:"6px 10px" }}/>
-                        <button onClick={handleImportKey} className="btn btn-primary" style={{ fontSize:"0.75rem",padding:"6px 14px" }}>Impor</button>
+                    <div style={{ display:"flex",gap:"6px",alignItems:"center",flexWrap:"wrap",width:"100%" }}>
+                        <input type="password" value={keyInput} onChange={e=>setKeyInput(e.target.value)} placeholder="Tempel key..." className="input-field" style={{ flex:"1 1 140px",fontSize:"0.75rem",padding:"6px 10px",minWidth:0 }}/>
+                        <button onClick={handleImportKey} className="btn btn-primary" style={{ fontSize:"0.75rem",padding:"6px 14px",flexShrink:0 }}>Impor</button>
                     </div>
                 </div>
             ) : (
@@ -246,13 +246,13 @@ export default function PatientDashboard() {
             )}
 
             {/* Tab Navigation */}
-            <div style={{ display:"flex",gap:"4px",background:"#f1f5f9",padding:"4px",borderRadius:"12px",maxWidth:"560px",margin:"0 auto 28px" }}>
+            <div style={{ display:"flex",gap:"4px",background:"#f1f5f9",padding:"4px",borderRadius:"12px",margin:"0 auto 28px" }}>
                 {tabs.map(tab => (
-                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ display:"flex",alignItems:"center",gap:"7px",padding:"10px 18px",borderRadius:"9px",fontSize:"0.82rem",fontWeight:600,border:"none",cursor:"pointer",transition:"all 0.2s ease",flex:"1 1 0",justifyContent:"center",background:activeTab===tab.id?"white":"transparent",color:activeTab===tab.id?"#0f172a":"#64748b",boxShadow:activeTab===tab.id?"0 1px 3px rgba(0,0,0,0.08)":"none" }}>
+                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:"4px",padding:"8px 6px",borderRadius:"9px",fontSize:"0.72rem",fontWeight:600,border:"none",cursor:"pointer",transition:"all 0.2s ease",flex:"1 1 0",justifyContent:"center",textAlign:"center",lineHeight:1.3,background:activeTab===tab.id?"white":"transparent",color:activeTab===tab.id?"#0f172a":"#64748b",boxShadow:activeTab===tab.id?"0 1px 3px rgba(0,0,0,0.08)":"none",minWidth:0 }}>
                         {tab.icon}
-                        <span>{tab.label}</span>
+                        <span style={{ wordBreak:"keep-all" }}>{tab.label}</span>
                         {tab.count !== undefined && tab.count > 0 && (
-                            <span style={{ fontSize:"0.7rem",fontWeight:700,padding:"1px 7px",borderRadius:"10px",background:tab.id==="pending"?"#fef3c7":"#e2e8f0",color:tab.id==="pending"?"#b45309":"#475569" }}>
+                            <span style={{ fontSize:"0.65rem",fontWeight:700,padding:"1px 6px",borderRadius:"10px",background:tab.id==="pending"?"#fef3c7":"#e2e8f0",color:tab.id==="pending"?"#b45309":"#475569" }}>
                                 {tab.count}
                             </span>
                         )}

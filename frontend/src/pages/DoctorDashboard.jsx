@@ -273,13 +273,13 @@ export default function DoctorDashboard() {
             )}
 
             {/* Tab Navigation */}
-            <div style={{ display:"flex",gap:"4px",marginBottom:"28px",background:"#f1f5f9",padding:"4px",borderRadius:"12px",maxWidth:"560px",margin:"0 auto 28px" }}>
+            <div style={{ display:"flex",gap:"4px",background:"#f1f5f9",padding:"4px",borderRadius:"12px",margin:"0 auto 28px" }}>
                 {tabs.map(tab => (
-                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ display:"flex",alignItems:"center",gap:"7px",padding:"10px 18px",borderRadius:"9px",fontSize:"0.82rem",fontWeight:600,border:"none",cursor:"pointer",transition:"all 0.2s ease",flex:"1 1 0",justifyContent:"center",background:activeTab===tab.id?"white":"transparent",color:activeTab===tab.id?"#0f172a":"#64748b",boxShadow:activeTab===tab.id?"0 1px 3px rgba(0,0,0,0.08)":"none" }}>
-                        <TabIcon type={tab.icon} size={16}/>
-                        <span>{tab.label}</span>
+                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:"4px",padding:"8px 6px",borderRadius:"9px",fontSize:"0.72rem",fontWeight:600,border:"none",cursor:"pointer",transition:"all 0.2s ease",flex:"1 1 0",justifyContent:"center",textAlign:"center",lineHeight:1.3,background:activeTab===tab.id?"white":"transparent",color:activeTab===tab.id?"#0f172a":"#64748b",boxShadow:activeTab===tab.id?"0 1px 3px rgba(0,0,0,0.08)":"none",minWidth:0 }}>
+                        <TabIcon type={tab.icon} size={15}/>
+                        <span style={{ wordBreak:"keep-all" }}>{tab.label}</span>
                         {tab.count > 0 && (
-                            <span style={{ minWidth:"18px",height:"18px",padding:"0 5px",borderRadius:"9px",background:"#ef4444",color:"white",fontSize:"0.65rem",fontWeight:700,display:"inline-flex",alignItems:"center",justifyContent:"center",lineHeight:1 }}>{tab.count}</span>
+                            <span style={{ minWidth:"16px",height:"16px",padding:"0 4px",borderRadius:"9px",background:"#ef4444",color:"white",fontSize:"0.6rem",fontWeight:700,display:"inline-flex",alignItems:"center",justifyContent:"center",lineHeight:1 }}>{tab.count}</span>
                         )}
                     </button>
                 ))}
