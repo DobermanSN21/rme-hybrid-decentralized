@@ -52,7 +52,7 @@ export default function Layout({ children }) {
     };
 
     return (
-        <div className="min-h-screen flex flex-col" style={{ background: "#f0f4f8" }}>
+        <div className="min-h-screen flex flex-col" style={{ background: "#f0f4f8", overflowX: "hidden", width: "100%" }}>
             {/* Top Nav */}
             <header className="sui-navbar">
                 <div
