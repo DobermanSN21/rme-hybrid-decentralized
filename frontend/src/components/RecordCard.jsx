@@ -151,22 +151,24 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
                     </div>
 
                     {/* Meta info */}
-                    <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", fontSize: "0.73rem", padding: "10px 14px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #f1f5f9" }}>
-                        {record.doctorAddress && (
-                            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                <span style={{ color: "#94a3b8" }}>Dokter:</span>
-                                <span style={{ color: "#0d9488", fontWeight: 600 }}>{doctorName || shortenAddr(record.doctorAddress)}</span>
-                            </div>
-                        )}
-                        {record.patientAddress && patientName && (
-                            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                <span style={{ color: "#94a3b8" }}>Pasien:</span>
-                                <span style={{ color: "#2E7DDB", fontWeight: 600 }}>{patientName}</span>
-                            </div>
-                        )}
-                        <div style={{ display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "0.73rem", padding: "10px 14px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #f1f5f9" }}>
+                        <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+                            {record.doctorAddress && (
+                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                    <span style={{ color: "#94a3b8" }}>Dokter:</span>
+                                    <span style={{ color: "#0d9488", fontWeight: 600 }}>{doctorName || shortenAddr(record.doctorAddress)}</span>
+                                </div>
+                            )}
+                            {record.patientAddress && patientName && (
+                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                    <span style={{ color: "#94a3b8" }}>Pasien:</span>
+                                    <span style={{ color: "#2E7DDB", fontWeight: 600 }}>{patientName}</span>
+                                </div>
+                            )}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px", minWidth: 0, overflow: "hidden" }}>
                             <span style={{ color: "#94a3b8", flexShrink: 0 }}>CID:</span>
-                            <span className="mono" style={{ color: "#2E7DDB", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={record.cid}>{record.cid}</span>
+                            <span className="mono" style={{ color: "#2E7DDB", fontWeight: 500, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={record.cid}>{record.cid}</span>
                         </div>
                     </div>
                 </div>
