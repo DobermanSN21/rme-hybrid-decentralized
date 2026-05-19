@@ -78,13 +78,13 @@ export default function Layout({ children }) {
 
                     <div
                         className="flex items-center"
-                        style={{ gap: "clamp(6px, 1.5vw, 12px)", minWidth: 0, flexWrap: "wrap", justifyContent: "flex-end" }}
+                        style={{ gap: "8px", minWidth: 0, flexShrink: 0, justifyContent: "flex-end" }}
                     >
                         <span className={`badge ${isPatient ? "badge-patient" : "badge-doctor"}`}>
                             {ROLE_LABELS[role]}
                         </span>
                         {displayName && (
-                            <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#334155", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            <span className="hidden sm:inline-block" style={{ fontSize: "0.82rem", fontWeight: 600, color: "#334155", maxWidth: "140px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                 {displayName}
                             </span>
                         )}
@@ -94,27 +94,30 @@ export default function Layout({ children }) {
                             style={{
                                 display: "inline-flex",
                                 alignItems: "center",
-                                gap: "5px",
-                                padding: "4px 10px",
+                                gap: "4px",
+                                padding: "4px 8px",
                                 borderRadius: "8px",
                                 border: copied ? "1px solid #bbf7d0" : "1px solid #e2e8f0",
                                 background: copied ? "#f0fdf4" : "#f8fafc",
                                 cursor: "pointer",
                                 transition: "all 0.2s ease",
-                                fontSize: "0.75rem",
+                                fontSize: "0.72rem",
                                 fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
                                 color: copied ? "#16a34a" : "#64748b",
+                                whiteSpace: "nowrap",
                             }}
                         >
-                            {shortenAddress(account?.address)}
-                            {copied ? <IconCheck size={13} /> : <IconCopy size={13} />}
+                            <span className="sm:hidden">{account?.address ? `${account.address.slice(0,5)}...${account.address.slice(-3)}` : ""}</span>
+                            <span className="hidden sm:inline">{shortenAddress(account?.address)}</span>
+                            {copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
                         </button>
                         <button
                             onClick={disconnect}
                             className="btn btn-ghost"
-                            style={{ fontSize: "0.78rem", padding: "7px 14px" }}
+                            style={{ fontSize: "0.78rem", padding: "7px 10px" }}
                         >
-                            <IconLogout size={14} /> Logout
+                            <IconLogout size={14} />
+                            <span className="hidden sm:inline" style={{ marginLeft: "4px" }}>Logout</span>
                         </button>
                     </div>
                 </div>
