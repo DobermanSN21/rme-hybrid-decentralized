@@ -259,9 +259,9 @@ export default function DoctorDashboard() {
                 <div style={{ display:"flex",alignItems:"center",gap:"8px",padding:"12px 16px",borderRadius:"10px",background:"#fffbeb",border:"1px solid #fde68a",marginBottom:"24px",flexWrap:"wrap" }} className="animate-fade-in">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
                     <span style={{ fontSize:"0.78rem",fontWeight:600,color:"#b45309",flex:1 }}>Private key belum diimpor — enkripsi tidak tersedia</span>
-                    <div style={{ display:"flex",gap:"6px",alignItems:"center" }}>
-                        <input type="password" value={keyInput} onChange={e=>setKeyInput(e.target.value)} placeholder="Tempel key..." className="input-field" style={{ width:"200px",fontSize:"0.75rem",padding:"6px 10px" }}/>
-                        <button onClick={handleImportKey} className="btn btn-primary" style={{ fontSize:"0.75rem",padding:"6px 14px" }}>Impor</button>
+                    <div style={{ display:"flex",gap:"6px",alignItems:"center",flexWrap:"wrap",width:"100%" }}>
+                        <input type="password" value={keyInput} onChange={e=>setKeyInput(e.target.value)} placeholder="Tempel key..." className="input-field" style={{ flex:"1 1 140px",minWidth:0,fontSize:"0.75rem",padding:"6px 10px" }}/>
+                        <button onClick={handleImportKey} className="btn btn-primary" style={{ fontSize:"0.75rem",padding:"6px 14px",flexShrink:0 }}>Impor</button>
                     </div>
                 </div>
             ) : (
@@ -491,15 +491,13 @@ export default function DoctorDashboard() {
                     <div className="glass-card" style={{ marginBottom:"24px",padding:"24px" }}>
                         <h3 style={{ fontSize:"0.88rem",fontWeight:700,color:"#0f172a",marginBottom:"4px" }}>Cari Pasien</h3>
                         <p style={{ fontSize:"0.72rem",color:"#94a3b8",marginBottom:"14px" }}>Cari berdasarkan nama atau pilih dari daftar pasien terdaftar</p>
-                        <div style={{ display:"flex",gap:"10px",flexWrap:"wrap",alignItems:"flex-start" }}>
-                            <div style={{ flex:"1 1 200px",minWidth:0 }}>
-                                <PatientSearchDropdown
-                                    patientList={patientList}
-                                    listLoading={patientListLoading}
-                                    onSelect={addr => { setSearchAddress(addr); setRecords([]); setDecryptedMap({}); setKeyStatusMap({}); }}
-                                />
-                            </div>
-                            <button onClick={handleSearch} disabled={searchLoading || !searchAddress} className="btn btn-primary" style={{ flex:"0 0 auto",fontSize:"0.82rem",alignSelf:"flex-start",marginTop:"1px" }}>
+                        <div style={{ display:"flex",flexDirection:"column",gap:"10px" }}>
+                            <PatientSearchDropdown
+                                patientList={patientList}
+                                listLoading={patientListLoading}
+                                onSelect={addr => { setSearchAddress(addr); setRecords([]); setDecryptedMap({}); setKeyStatusMap({}); }}
+                            />
+                            <button onClick={handleSearch} disabled={searchLoading || !searchAddress} className="btn btn-primary" style={{ fontSize:"0.82rem",justifyContent:"center",width:"100%" }}>
                                 {searchLoading
                                     ? <IconLoader size={14}/>
                                     : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg> Cari Rekam Medis</>}
