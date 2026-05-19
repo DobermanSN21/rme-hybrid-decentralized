@@ -156,15 +156,15 @@ export default function AdminDashboard() {
                             <span style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.5)", marginLeft: "8px" }}>Admin Panel</span>
                         </div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px", padding: "4px 12px", borderRadius: "20px", background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)" }}>
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="#ef4444" stroke="none"><circle cx="12" cy="12" r="10"/></svg>
-                            <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#fca5a5" }}>ADMINISTRATOR</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "5px", padding: "4px 10px", borderRadius: "20px", background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)" }}>
+                            <svg width="8" height="8" viewBox="0 0 24 24" fill="#ef4444" stroke="none"><circle cx="12" cy="12" r="10"/></svg>
+                            <span style={{ fontSize: "0.65rem", fontWeight: 700, color: "#fca5a5" }}>ADMIN</span>
                         </div>
-                        <span style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.4)", fontFamily: "monospace" }}>{short(account?.address)}</span>
-                        <button onClick={disconnect} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", borderRadius: "8px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)", fontSize: "0.78rem", cursor: "pointer", fontFamily: "inherit" }}>
+                        <span className="hidden sm:inline" style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.4)", fontFamily: "monospace", whiteSpace: "nowrap" }}>{short(account?.address)}</span>
+                        <button onClick={disconnect} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "7px 10px", borderRadius: "8px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)", fontSize: "0.78rem", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
-                            Logout
+                            <span className="hidden sm:inline">Logout</span>
                         </button>
                     </div>
                 </div>
@@ -224,7 +224,7 @@ export default function AdminDashboard() {
                             {pending.map(req => (
                                 <div key={req.addr} className="glass-card animate-fade-in" style={{ padding: "22px" }}>
                                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
-                                        <div style={{ flex: 1, minWidth: "220px" }}>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
                                             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
                                                 <div style={{ width: "42px", height: "42px", borderRadius: "11px", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6 6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
@@ -236,7 +236,7 @@ export default function AdminDashboard() {
                                                 <Badge label="Menunggu" color="#d97706" bg="#fffbeb" border="#fde68a" />
                                             </div>
 
-                                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px", padding: "14px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #f1f5f9" }}>
+                                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "10px", padding: "14px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #f1f5f9" }}>
                                                 {[
                                                     { label: "Nomor SIP", value: req.licenseNumber },
                                                     { label: "Rumah Sakit", value: req.hospital },
@@ -251,7 +251,7 @@ export default function AdminDashboard() {
                                             </div>
                                         </div>
 
-                                        <div style={{ display: "flex", gap: "8px", flexShrink: 0, alignItems: "flex-start" }}>
+                                        <div style={{ display: "flex", gap: "8px", flexShrink: 0, alignItems: "flex-start", flexWrap: "wrap" }}>
                                             <button onClick={() => handleRejectOpen(req)} disabled={actionLoading === req.addr} className="btn btn-danger" style={{ fontSize: "0.8rem", padding: "9px 16px" }}>
                                                 {actionLoading === req.addr ? <Spinner/> : "✕ Tolak"}
                                             </button>
@@ -277,7 +277,7 @@ export default function AdminDashboard() {
                                         <div style={{ width: "38px", height: "38px", borderRadius: "10px", background: "#f0fdf4", border: "1px solid #bbf7d0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6 6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
                                         </div>
-                                        <div style={{ flex: 1, minWidth: "160px" }}>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
                                             <div style={{ fontSize: "0.9rem", fontWeight: 700, color: "#0f172a" }}>{req.name}</div>
                                             <div style={{ fontSize: "0.72rem", color: "#64748b" }}>{req.specialization} · {req.hospital}</div>
                                         </div>
