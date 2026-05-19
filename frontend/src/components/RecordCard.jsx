@@ -159,7 +159,7 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
             </div>
 
             {/* Meta info */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "5px", fontSize: "0.72rem", padding: "8px 12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #f1f5f9", marginBottom: "12px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", fontSize: "0.72rem", padding: "8px 12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #f1f5f9", marginBottom: "12px", overflow: "hidden", minWidth: 0 }}>
                 <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
                     {record.doctorAddress && (
                         <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
@@ -174,11 +174,21 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
                         </div>
                     )}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "4px", overflow: "hidden" }}>
-                    <span style={{ color: "#94a3b8", flexShrink: 0 }}>CID:</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "4px", minWidth: 0, overflow: "hidden" }}>
+                    <span style={{ color: "#94a3b8", flexShrink: 0, fontSize: "0.72rem" }}>CID:</span>
                     <span
-                        className="mono"
-                        style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#2E7DDB", fontWeight: 500 }}
+                        style={{
+                            flex: 1,
+                            minWidth: 0,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            color: "#2E7DDB",
+                            fontWeight: 500,
+                            fontFamily: "'JetBrains Mono','Fira Code','Consolas',monospace",
+                            fontSize: "0.7rem",
+                            display: "block",
+                        }}
                         title={record.cid}
                     >
                         {record.cid}
