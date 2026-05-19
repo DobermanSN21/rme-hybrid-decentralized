@@ -123,6 +123,9 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
                 padding: "16px",
                 borderLeft: keyAvailable === false ? "3px solid #fde68a" : undefined,
                 overflow: "hidden",
+                width: "100%",
+                boxSizing: "border-box",
+                minWidth: 0,
             }}
         >
             {/* No-key warning banner */}

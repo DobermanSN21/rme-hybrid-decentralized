@@ -330,7 +330,7 @@ export default function PatientDashboard() {
                             )}
                         </div>
                     )}
-                    <div style={{ display:"flex",flexDirection:"column",gap:"12px" }}>
+                    <div style={{ display:"flex",flexDirection:"column",gap:"12px",overflow:"hidden",minWidth:0 }}>
                         {records.map((rec,i) => (
                             <RecordCard key={i} record={rec}
                                 onDecrypt={() => handleDecrypt(rec.cid, rec.fileType)}

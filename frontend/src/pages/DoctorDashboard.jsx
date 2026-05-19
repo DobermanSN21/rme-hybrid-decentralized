@@ -511,7 +511,7 @@ export default function DoctorDashboard() {
                                 <h3 className="section-title" style={{ marginBottom:0 }}>Rekam Medis</h3>
                                 <span className="badge badge-patient">{records.length} rekam medis</span>
                             </div>
-                            <div style={{ display:"flex",flexDirection:"column",gap:"14px" }}>
+                            <div style={{ display:"flex",flexDirection:"column",gap:"14px",overflow:"hidden",minWidth:0 }}>
                                 {records.map((rec,i) => (
                                     <RecordCard key={i} record={rec}
                                         onDecrypt={() => handleDecrypt(rec.cid, rec.fileType)}
