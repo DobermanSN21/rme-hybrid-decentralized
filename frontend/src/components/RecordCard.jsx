@@ -117,123 +117,129 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
     };
 
     return (
-        <div className="glass-card animate-fade-in" style={{ padding: "22px", borderLeft: keyAvailable === false ? "3px solid #fde68a" : undefined }}>
+        <div
+            className="glass-card animate-fade-in"
+            style={{
+                padding: "16px",
+                borderLeft: keyAvailable === false ? "3px solid #fde68a" : undefined,
+                overflow: "hidden",
+            }}
+        >
             {/* No-key warning banner */}
             {keyAvailable === false && (
-                <div style={{ display:"flex",alignItems:"center",gap:"10px",padding:"10px 14px",borderRadius:"10px",background:"#fffbeb",border:"1px solid #fde68a",marginBottom:"14px" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:"10px", padding:"10px 12px", borderRadius:"10px", background:"#fffbeb", border:"1px solid #fde68a", marginBottom:"12px" }}>
                     <IconLockClosed size={16} color="#d97706" />
-                    <div style={{ flex:1 }}>
-                        <div style={{ fontSize:"0.75rem",fontWeight:700,color:"#b45309" }}>Kunci dekripsi tidak tersedia</div>
-                        <div style={{ fontSize:"0.7rem",color:"#92400e",marginTop:"1px" }}>Minta pasien untuk memberikan akses rekam ini melalui tab <strong>Kelola Akses</strong> mereka.</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize:"0.75rem", fontWeight:700, color:"#b45309" }}>Kunci dekripsi tidak tersedia</div>
+                        <div style={{ fontSize:"0.7rem", color:"#92400e", marginTop:"1px" }}>Minta pasien memberikan akses melalui tab <strong>Kelola Akses</strong>.</div>
                     </div>
                 </div>
             )}
-            {/* Header */}
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                    {/* File info row */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px" }}>
-                        <div style={{
-                            width: "42px", height: "42px", borderRadius: "10px",
-                            background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center",
-                            flexShrink: 0,
-                        }}>
-                            {getFileIcon(record.fileType)}
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={record.fileName}>
-                                {record.fileName || "Unknown File"}
-                            </div>
-                            <div style={{ fontSize: "0.73rem", color: "#94a3b8", marginTop: "2px" }}>
-                                {record.fileType} · {formatDate(record.timestamp)}
-                            </div>
-                        </div>
-                    </div>
 
-                    {/* Meta info */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "0.73rem", padding: "10px 14px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #f1f5f9" }}>
-                        <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-                            {record.doctorAddress && (
-                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                    <span style={{ color: "#94a3b8" }}>Dokter:</span>
-                                    <span style={{ color: "#0d9488", fontWeight: 600 }}>{doctorName || shortenAddr(record.doctorAddress)}</span>
-                                </div>
-                            )}
-                            {record.patientAddress && patientName && (
-                                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                    <span style={{ color: "#94a3b8" }}>Pasien:</span>
-                                    <span style={{ color: "#2E7DDB", fontWeight: 600 }}>{patientName}</span>
-                                </div>
-                            )}
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "4px", minWidth: 0, overflow: "hidden" }}>
-                            <span style={{ color: "#94a3b8", flexShrink: 0 }}>CID:</span>
-                            <span className="mono" style={{ color: "#2E7DDB", fontWeight: 500, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={record.cid}>{record.cid}</span>
-                        </div>
-                    </div>
+            {/* File info row */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, marginBottom: "10px" }}>
+                <div style={{
+                    width: "40px", height: "40px", borderRadius: "10px",
+                    background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center",
+                    flexShrink: 0,
+                }}>
+                    {getFileIcon(record.fileType)}
                 </div>
-
-                {/* Action buttons */}
-                <div style={{ display: "flex", gap: "8px", flexShrink: 0, alignItems: "flex-start", flexWrap: "wrap" }}>
-                    {!decryptedData && onDecrypt && keyAvailable === false ? (
-                        <div style={{ display:"flex",alignItems:"center",gap:"6px",padding:"7px 14px",borderRadius:"9px",background:"#fffbeb",border:"1.5px solid #fde68a",fontSize:"0.75rem",fontWeight:600,color:"#b45309",whiteSpace:"nowrap" }}>
-                            <IconLockClosed size={13} color="#b45309" /> Tanpa Kunci
-                        </div>
-                    ) : !decryptedData && onDecrypt && (
-                        <button
-                            onClick={handleDecrypt}
-                            disabled={decrypting || keyAvailable === false}
-                            className="btn btn-primary"
-                            style={{ fontSize: "0.78rem", padding: "8px 16px" }}
-                        >
-                            {decrypting
-                                ? <><IconLoader size={14} /> Mendekripsi...</>
-                                : <><IconUnlock size={14} /> Dekripsi</>
-                            }
-                        </button>
-                    )}
-                    {decryptedData && (
-                        <>
-                            <button
-                                onClick={() => setExpanded(!expanded)}
-                                className="btn btn-ghost"
-                                style={{ fontSize: "0.78rem", padding: "8px 14px" }}
-                            >
-                                {expanded
-                                    ? <><IconEyeOff size={14} /> Tutup</>
-                                    : <><IconEye size={14} /> Lihat</>
-                                }
-                            </button>
-                            <button
-                                onClick={handleDownload}
-                                className="btn btn-ghost"
-                                style={{ fontSize: "0.78rem", padding: "8px 14px" }}
-                            >
-                                <IconDownload size={14} /> Unduh
-                            </button>
-                        </>
-                    )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                        style={{ fontSize: "0.88rem", fontWeight: 600, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                        title={record.fileName}
+                    >
+                        {record.fileName || "Unknown File"}
+                    </div>
+                    <div style={{ fontSize: "0.72rem", color: "#94a3b8", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {record.fileType} · {formatDate(record.timestamp)}
+                    </div>
                 </div>
             </div>
 
-            {/* Decrypted status badge */}
-            {decryptedData && !expanded && (
-                <div style={{ marginTop: "10px" }}>
-                    <span style={{
-                        display: "inline-flex", alignItems: "center", gap: "5px",
-                        padding: "3px 10px", borderRadius: "6px", fontSize: "0.7rem",
-                        fontWeight: 600, background: "#f0fdf4", color: "#16a34a",
-                        border: "1px solid #bbf7d0",
-                    }}>
-                        <IconLock size={11} color="#16a34a" /> Terdekripsi
+            {/* Meta info */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", fontSize: "0.72rem", padding: "8px 12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #f1f5f9", marginBottom: "12px" }}>
+                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                    {record.doctorAddress && (
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                            <span style={{ color: "#94a3b8" }}>Dokter:</span>
+                            <span style={{ color: "#0d9488", fontWeight: 600 }}>{doctorName || shortenAddr(record.doctorAddress)}</span>
+                        </div>
+                    )}
+                    {record.patientAddress && patientName && (
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                            <span style={{ color: "#94a3b8" }}>Pasien:</span>
+                            <span style={{ color: "#2E7DDB", fontWeight: 600 }}>{patientName}</span>
+                        </div>
+                    )}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "4px", overflow: "hidden" }}>
+                    <span style={{ color: "#94a3b8", flexShrink: 0 }}>CID:</span>
+                    <span
+                        className="mono"
+                        style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#2E7DDB", fontWeight: 500 }}
+                        title={record.cid}
+                    >
+                        {record.cid}
                     </span>
                 </div>
-            )}
+            </div>
+
+            {/* Action buttons — full width row, always below meta */}
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                {!decryptedData && onDecrypt && keyAvailable === false ? (
+                    <div style={{ display:"flex", alignItems:"center", gap:"6px", padding:"7px 14px", borderRadius:"9px", background:"#fffbeb", border:"1.5px solid #fde68a", fontSize:"0.75rem", fontWeight:600, color:"#b45309", whiteSpace:"nowrap" }}>
+                        <IconLockClosed size={13} color="#b45309" /> Tanpa Kunci
+                    </div>
+                ) : !decryptedData && onDecrypt && (
+                    <button
+                        onClick={handleDecrypt}
+                        disabled={decrypting || keyAvailable === false}
+                        className="btn btn-primary"
+                        style={{ fontSize: "0.78rem", padding: "8px 20px" }}
+                    >
+                        {decrypting
+                            ? <><IconLoader size={14} /> Mendekripsi...</>
+                            : <><IconUnlock size={14} /> Dekripsi</>
+                        }
+                    </button>
+                )}
+                {decryptedData && (
+                    <>
+                        <span style={{
+                            display: "inline-flex", alignItems: "center", gap: "5px",
+                            padding: "7px 12px", borderRadius: "9px", fontSize: "0.74rem",
+                            fontWeight: 600, background: "#f0fdf4", color: "#16a34a",
+                            border: "1px solid #bbf7d0",
+                        }}>
+                            <IconLock size={11} color="#16a34a" /> Terdekripsi
+                        </span>
+                        <button
+                            onClick={() => setExpanded(!expanded)}
+                            className="btn btn-ghost"
+                            style={{ fontSize: "0.78rem", padding: "8px 14px" }}
+                        >
+                            {expanded
+                                ? <><IconEyeOff size={14} /> Tutup</>
+                                : <><IconEye size={14} /> Lihat</>
+                            }
+                        </button>
+                        <button
+                            onClick={handleDownload}
+                            className="btn btn-ghost"
+                            style={{ fontSize: "0.78rem", padding: "8px 14px" }}
+                        >
+                            <IconDownload size={14} /> Unduh
+                        </button>
+                    </>
+                )}
+            </div>
 
             {/* Decrypted Content Display */}
             {decryptedData && expanded && (
                 <div style={{
-                    marginTop: "16px", paddingTop: "16px",
+                    marginTop: "14px", paddingTop: "14px",
                     borderTop: "1px solid #e2e8f0",
                 }}>
                     {decryptedData.fileType?.startsWith("image/") ? (
@@ -254,12 +260,12 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
                     ) : decryptedData.fileType === "application/pdf" ? (
                         <div style={{
                             background: "#f8fafc", borderRadius: "10px",
-                            padding: "24px", textAlign: "center",
+                            padding: "20px", textAlign: "center",
                         }}>
                             <IconFilePdf size={40} color="#e11d48" />
                             <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "#0f172a", marginTop: "10px" }}>{record.fileName}</p>
                             <p style={{ fontSize: "0.75rem", color: "#94a3b8", marginBottom: "14px" }}>Dokumen PDF — Terdekripsi</p>
-                            <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
+                            <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap" }}>
                                 <a
                                     href={decryptedData.url}
                                     target="_blank"
