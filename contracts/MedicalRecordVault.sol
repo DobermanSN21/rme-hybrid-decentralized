@@ -32,6 +32,9 @@ contract MedicalRecordVault {
         string licenseNumber;   // Nomor SIP
         string specialization;
         string hospital;
+        string ktpNumber;       // NIK (16 digit)
+        string phoneNumber;     // Nomor telepon
+        string photoCid;        // IPFS CID foto dokter
         string publicKey;       // ECC key pair generated at request time
         uint256 requestedAt;
         bool isPending;
@@ -47,6 +50,9 @@ contract MedicalRecordVault {
         string licenseNumber;
         string specialization;
         string hospital;
+        string ktpNumber;
+        string phoneNumber;
+        string photoCid;
         uint256 requestedAt;
     }
 
@@ -155,6 +161,9 @@ contract MedicalRecordVault {
      * @param _licenseNumber Nomor SIP (Surat Izin Praktik)
      * @param _specialization Spesialisasi dokter
      * @param _hospital Nama rumah sakit / klinik
+     * @param _ktpNumber NIK KTP 16 digit
+     * @param _phoneNumber Nomor telepon
+     * @param _photoCid IPFS CID foto dokter (opsional)
      * @param _publicKey ECC Public Key (hex string)
      */
     function requestDoctorVerification(
@@ -162,6 +171,9 @@ contract MedicalRecordVault {
         string calldata _licenseNumber,
         string calldata _specialization,
         string calldata _hospital,
+        string calldata _ktpNumber,
+        string calldata _phoneNumber,
+        string calldata _photoCid,
         string calldata _publicKey
     ) external onlyUnregistered notPendingRequest {
         require(bytes(_name).length > 0, "Name cannot be empty");
@@ -173,6 +185,9 @@ contract MedicalRecordVault {
             licenseNumber: _licenseNumber,
             specialization: _specialization,
             hospital: _hospital,
+            ktpNumber: _ktpNumber,
+            phoneNumber: _phoneNumber,
+            photoCid: _photoCid,
             publicKey: _publicKey,
             requestedAt: block.timestamp,
             isPending: true,
@@ -510,12 +525,16 @@ contract MedicalRecordVault {
         string memory name,
         string memory licenseNumber,
         string memory specialization,
-        string memory hospital
+        string memory hospital,
+        string memory ktpNumber,
+        string memory phoneNumber,
+        string memory photoCid
     ) {
         DoctorRequest storage req = doctorRequests[_addr];
         return (
             req.isPending, req.isApproved, req.isRejected, req.rejectReason,
-            req.name, req.licenseNumber, req.specialization, req.hospital
+            req.name, req.licenseNumber, req.specialization, req.hospital,
+            req.ktpNumber, req.phoneNumber, req.photoCid
         );
     }
 
@@ -535,6 +554,9 @@ contract MedicalRecordVault {
                 licenseNumber: req.licenseNumber,
                 specialization: req.specialization,
                 hospital: req.hospital,
+                ktpNumber: req.ktpNumber,
+                phoneNumber: req.phoneNumber,
+                photoCid: req.photoCid,
                 requestedAt: req.requestedAt
             });
         }
@@ -555,6 +577,9 @@ contract MedicalRecordVault {
                 licenseNumber: req.licenseNumber,
                 specialization: req.specialization,
                 hospital: req.hospital,
+                ktpNumber: req.ktpNumber,
+                phoneNumber: req.phoneNumber,
+                photoCid: req.photoCid,
                 requestedAt: req.requestedAt
             });
         }

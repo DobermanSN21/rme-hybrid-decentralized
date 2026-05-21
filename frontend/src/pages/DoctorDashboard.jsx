@@ -273,13 +273,13 @@ export default function DoctorDashboard() {
             )}
 
             {/* Tab Navigation */}
-            <div style={{ display:"flex",gap:"4px",background:"#f1f5f9",padding:"4px",borderRadius:"12px",marginBottom:"28px",width:"100%",boxSizing:"border-box" }}>
+            <div className="tab-nav">
                 {tabs.map(tab => (
-                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:"4px",padding:"8px 6px",borderRadius:"9px",fontSize:"0.72rem",fontWeight:600,border:"none",cursor:"pointer",transition:"all 0.2s ease",flex:"1 1 0",justifyContent:"center",textAlign:"center",lineHeight:1.3,background:activeTab===tab.id?"white":"transparent",color:activeTab===tab.id?"#0f172a":"#64748b",boxShadow:activeTab===tab.id?"0 1px 3px rgba(0,0,0,0.08)":"none",minWidth:0 }}>
-                        <TabIcon type={tab.icon} size={15}/>
-                        <span style={{ wordBreak:"keep-all" }}>{tab.label}</span>
+                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className="tab-nav-btn" style={{ background:activeTab===tab.id?"white":"transparent",color:activeTab===tab.id?"#0f172a":"#64748b",boxShadow:activeTab===tab.id?"0 1px 3px rgba(0,0,0,0.08)":"none" }}>
+                        <TabIcon type={tab.icon} size={16}/>
+                        <span>{tab.label}</span>
                         {tab.count > 0 && (
-                            <span style={{ minWidth:"16px",height:"16px",padding:"0 4px",borderRadius:"9px",background:"#ef4444",color:"white",fontSize:"0.6rem",fontWeight:700,display:"inline-flex",alignItems:"center",justifyContent:"center",lineHeight:1 }}>{tab.count}</span>
+                            <span style={{ minWidth:"18px",height:"18px",padding:"0 5px",borderRadius:"9px",background:"#ef4444",color:"white",fontSize:"0.65rem",fontWeight:700,display:"inline-flex",alignItems:"center",justifyContent:"center",lineHeight:1 }}>{tab.count}</span>
                         )}
                     </button>
                 ))}
@@ -491,13 +491,15 @@ export default function DoctorDashboard() {
                     <div className="glass-card" style={{ marginBottom:"24px",padding:"24px" }}>
                         <h3 style={{ fontSize:"0.88rem",fontWeight:700,color:"#0f172a",marginBottom:"4px" }}>Cari Pasien</h3>
                         <p style={{ fontSize:"0.72rem",color:"#94a3b8",marginBottom:"14px" }}>Cari berdasarkan nama atau pilih dari daftar pasien terdaftar</p>
-                        <div style={{ display:"flex",flexDirection:"column",gap:"10px" }}>
-                            <PatientSearchDropdown
-                                patientList={patientList}
-                                listLoading={patientListLoading}
-                                onSelect={addr => { setSearchAddress(addr); setRecords([]); setDecryptedMap({}); setKeyStatusMap({}); }}
-                            />
-                            <button onClick={handleSearch} disabled={searchLoading || !searchAddress} className="btn btn-primary" style={{ fontSize:"0.82rem",justifyContent:"center",width:"100%" }}>
+                        <div className="search-row">
+                            <div className="search-row-input">
+                                <PatientSearchDropdown
+                                    patientList={patientList}
+                                    listLoading={patientListLoading}
+                                    onSelect={addr => { setSearchAddress(addr); setRecords([]); setDecryptedMap({}); setKeyStatusMap({}); }}
+                                />
+                            </div>
+                            <button onClick={handleSearch} disabled={searchLoading || !searchAddress} className="btn btn-primary search-row-btn" style={{ fontSize:"0.82rem" }}>
                                 {searchLoading
                                     ? <IconLoader size={14}/>
                                     : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg> Cari Rekam Medis</>}

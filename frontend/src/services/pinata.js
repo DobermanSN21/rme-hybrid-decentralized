@@ -84,6 +84,51 @@ export async function downloadFromPinata(cid) {
 }
 
 /**
+ * Upload profile photo (unencrypted) to Pinata IPFS
+ * @param {File} photoFile - Photo file (image/jpeg, image/png, etc.)
+ * @returns {Promise<string>} IPFS CID
+ */
+export async function uploadProfilePhoto(photoFile) {
+    if (!PINATA_JWT) {
+        throw new Error("Pinata JWT not configured. Set VITE_PINATA_JWT di .env");
+    }
+
+    const formData = new FormData();
+    formData.append("file", photoFile, `doctor_photo_${Date.now()}_${photoFile.name}`);
+
+    const metadata = JSON.stringify({
+        name: `RME_DoctorPhoto_${Date.now()}`,
+        keyvalues: { source: "rme-vault", type: "doctor-profile-photo" },
+    });
+    formData.append("pinataMetadata", metadata);
+    formData.append("pinataOptions", JSON.stringify({ cidVersion: 1 }));
+
+    const response = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${PINATA_JWT}` },
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Gagal mengunggah foto: ${response.status} — ${error}`);
+    }
+
+    const result = await response.json();
+    return result.IpfsHash;
+}
+
+/**
+ * Get public IPFS URL for a CID (for profile photos / public files)
+ * @param {string} cid
+ * @returns {string|null}
+ */
+export function getPhotoUrl(cid) {
+    if (!cid) return null;
+    return `${PINATA_GATEWAY}/ipfs/${cid}`;
+}
+
+/**
  * Check if Pinata is configured
  * @returns {boolean}
  */

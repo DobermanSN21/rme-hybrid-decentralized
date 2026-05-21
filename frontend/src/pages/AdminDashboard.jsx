@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useWallet } from "../context/WalletContext";
 import { getPendingDoctorRequests, getApprovedDoctors, approveDoctor, rejectDoctor } from "../services/blockchain";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { getPhotoUrl } from "../services/pinata";
 
 const Spinner = ({ size = 14 }) => (
     <svg className="animate-spin" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -14,6 +15,13 @@ const Spinner = ({ size = 14 }) => (
 const short = a => a ? `${a.slice(0, 8)}...${a.slice(-6)}` : "-";
 
 const formatDate = ts => ts ? new Date(ts * 1000).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "-";
+
+const formatPhone = digits => {
+    if (!digits) return "—";
+    if (digits.length <= 4) return digits;
+    if (digits.length <= 8) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+    return `${digits.slice(0, 4)}-${digits.slice(4, 8)}-${digits.slice(8)}`;
+};
 
 const Badge = ({ label, color = "#64748b", bg = "#f8fafc", border = "#e2e8f0" }) => (
     <span style={{ fontSize: "0.68rem", fontWeight: 700, padding: "3px 10px", borderRadius: "8px", background: bg, color, border: `1px solid ${border}` }}>{label}</span>
@@ -225,27 +233,36 @@ export default function AdminDashboard() {
                                 <div key={req.addr} className="glass-card animate-fade-in" style={{ padding: "22px" }}>
                                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
                                         <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
-                                                <div style={{ width: "42px", height: "42px", borderRadius: "11px", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6 6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
-                                                </div>
-                                                <div>
+
+                                            {/* Header: foto + nama + badge */}
+                                            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px" }}>
+                                                {req.photoCid ? (
+                                                    <img src={getPhotoUrl(req.photoCid)} alt={req.name}
+                                                        style={{ width: "52px", height: "52px", borderRadius: "50%", objectFit: "cover", border: "2px solid #e2e8f0", flexShrink: 0 }} />
+                                                ) : (
+                                                    <div style={{ width: "52px", height: "52px", borderRadius: "50%", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+                                                    </div>
+                                                )}
+                                                <div style={{ flex: 1, minWidth: 0 }}>
                                                     <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0f172a" }}>{req.name}</div>
-                                                    <div style={{ fontSize: "0.72rem", color: "#94a3b8", marginTop: "1px" }}>{req.specialization || "—"}</div>
+                                                    <div style={{ fontSize: "0.72rem", color: "#94a3b8", marginTop: "1px" }}>{req.specialization || "—"} · {req.hospital || "—"}</div>
                                                 </div>
                                                 <Badge label="Menunggu" color="#d97706" bg="#fffbeb" border="#fde68a" />
                                             </div>
 
-                                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "10px", padding: "14px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #f1f5f9" }}>
+                                            {/* Detail grid */}
+                                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "10px", padding: "14px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #f1f5f9" }}>
                                                 {[
-                                                    { label: "Nomor SIP", value: req.licenseNumber },
-                                                    { label: "Rumah Sakit", value: req.hospital },
+                                                    { label: "Nomor SIP", value: req.licenseNumber, mono: true },
+                                                    { label: "Nomor KTP (NIK)", value: req.ktpNumber ? `${req.ktpNumber.slice(0,6)} ${req.ktpNumber.slice(6,12)} ${req.ktpNumber.slice(12)}` : "—", mono: true },
+                                                    { label: "Nomor Telepon", value: req.phoneNumber ? formatPhone(req.phoneNumber) : "—", mono: true },
                                                     { label: "Wallet", value: short(req.addr), mono: true },
                                                     { label: "Tanggal Pengajuan", value: formatDate(req.requestedAt) },
                                                 ].map((f, i) => (
                                                     <div key={i}>
                                                         <div style={{ fontSize: "0.65rem", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>{f.label}</div>
-                                                        <div style={{ fontSize: "0.8rem", fontWeight: 500, color: "#334155", fontFamily: f.mono ? "monospace" : "inherit" }}>{f.value || "—"}</div>
+                                                        <div style={{ fontSize: "0.8rem", fontWeight: 500, color: "#334155", fontFamily: f.mono ? "monospace" : "inherit", wordBreak: "break-all" }}>{f.value || "—"}</div>
                                                     </div>
                                                 ))}
                                             </div>
@@ -273,13 +290,19 @@ export default function AdminDashboard() {
                         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                             {approved.map(req => (
                                 <div key={req.addr} className="glass-card" style={{ padding: "18px 22px" }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap" }}>
-                                        <div style={{ width: "38px", height: "38px", borderRadius: "10px", background: "#f0fdf4", border: "1px solid #bbf7d0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6 6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6 6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
-                                        </div>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                                        {req.photoCid ? (
+                                            <img src={getPhotoUrl(req.photoCid)} alt={req.name}
+                                                style={{ width: "42px", height: "42px", borderRadius: "50%", objectFit: "cover", border: "2px solid #bbf7d0", flexShrink: 0 }} />
+                                        ) : (
+                                            <div style={{ width: "42px", height: "42px", borderRadius: "50%", background: "#f0fdf4", border: "1px solid #bbf7d0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+                                            </div>
+                                        )}
                                         <div style={{ flex: 1, minWidth: 0 }}>
                                             <div style={{ fontSize: "0.9rem", fontWeight: 700, color: "#0f172a" }}>{req.name}</div>
                                             <div style={{ fontSize: "0.72rem", color: "#64748b" }}>{req.specialization} · {req.hospital}</div>
+                                            {req.phoneNumber && <div style={{ fontSize: "0.7rem", color: "#94a3b8", fontFamily: "monospace", marginTop: "1px" }}>{formatPhone(req.phoneNumber)}</div>}
                                         </div>
                                         <div style={{ fontSize: "0.72rem", color: "#94a3b8", fontFamily: "monospace" }}>{short(req.addr)}</div>
                                         <Badge label="Aktif" color="#16a34a" bg="#f0fdf4" border="#bbf7d0" />

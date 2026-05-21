@@ -42,7 +42,7 @@ export function WalletProvider({ children }) {
                     if (req.isPending) {
                         setIsPendingDoctor(true);
                         setIsRejectedDoctor(false);
-                        setPendingDoctorInfo({ name: req.name, licenseNumber: req.licenseNumber, specialization: req.specialization, hospital: req.hospital });
+                        setPendingDoctorInfo({ name: req.name, licenseNumber: req.licenseNumber, specialization: req.specialization, hospital: req.hospital, ktpNumber: req.ktpNumber, phoneNumber: req.phoneNumber, photoCid: req.photoCid });
                     } else if (req.isRejected) {
                         setIsRejectedDoctor(true);
                         setRejectReason(req.rejectReason);

@@ -246,13 +246,13 @@ export default function PatientDashboard() {
             )}
 
             {/* Tab Navigation */}
-            <div style={{ display:"flex",gap:"4px",background:"#f1f5f9",padding:"4px",borderRadius:"12px",marginBottom:"28px",width:"100%",boxSizing:"border-box" }}>
+            <div className="tab-nav">
                 {tabs.map(tab => (
-                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:"4px",padding:"8px 6px",borderRadius:"9px",fontSize:"0.72rem",fontWeight:600,border:"none",cursor:"pointer",transition:"all 0.2s ease",flex:"1 1 0",justifyContent:"center",textAlign:"center",lineHeight:1.3,background:activeTab===tab.id?"white":"transparent",color:activeTab===tab.id?"#0f172a":"#64748b",boxShadow:activeTab===tab.id?"0 1px 3px rgba(0,0,0,0.08)":"none",minWidth:0 }}>
+                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className="tab-nav-btn" style={{ background:activeTab===tab.id?"white":"transparent",color:activeTab===tab.id?"#0f172a":"#64748b",boxShadow:activeTab===tab.id?"0 1px 3px rgba(0,0,0,0.08)":"none" }}>
                         {tab.icon}
-                        <span style={{ wordBreak:"keep-all" }}>{tab.label}</span>
+                        <span>{tab.label}</span>
                         {tab.count !== undefined && tab.count > 0 && (
-                            <span style={{ fontSize:"0.65rem",fontWeight:700,padding:"1px 6px",borderRadius:"10px",background:tab.id==="pending"?"#fef3c7":"#e2e8f0",color:tab.id==="pending"?"#b45309":"#475569" }}>
+                            <span style={{ fontSize:"0.7rem",fontWeight:700,padding:"1px 7px",borderRadius:"10px",background:tab.id==="pending"?"#fef3c7":"#e2e8f0",color:tab.id==="pending"?"#b45309":"#475569" }}>
                                 {tab.count}
                             </span>
                         )}

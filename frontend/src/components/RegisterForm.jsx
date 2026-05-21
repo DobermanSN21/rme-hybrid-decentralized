@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useWallet, ROLES } from "../context/WalletContext";
 import { registerAsPatient, requestDoctorVerification, getRole, getPublicKey as getBlockchainPublicKey } from "../services/blockchain";
 import { generateKeyPair, privateKeyToPublicKey } from "../services/crypto";
+import { uploadProfilePhoto, isPinataConfigured } from "../services/pinata";
 
 const SPECIALIZATIONS = [
     "Dokter Umum",
@@ -116,6 +117,10 @@ export default function RegisterForm() {
     const [licenseNumber, setLicenseNumber] = useState("");
     const [specialization, setSpecialization] = useState("");
     const [hospital, setHospital] = useState("");
+    const [ktpNumber, setKtpNumber] = useState("");
+    const [phoneNumber, setPhoneNumber] = useState("");
+    const [doctorPhoto, setDoctorPhoto] = useState(null);
+    const [doctorPhotoPreview, setDoctorPhotoPreview] = useState(null);
 
     // Shared state
     const [loading, setLoading] = useState(false);
@@ -149,17 +154,82 @@ export default function RegisterForm() {
         setRole(ROLES.PATIENT);
     };
 
+    // ── Formatting helpers ────────────────────────────────────────────
+
+    const handleKtpChange = (e) => {
+        const digits = e.target.value.replace(/\D/g, "").slice(0, 16);
+        let formatted = "";
+        for (let i = 0; i < digits.length; i++) {
+            if (i === 6 || i === 12) formatted += " ";
+            formatted += digits[i];
+        }
+        setKtpNumber(formatted);
+    };
+
+    const handlePhoneChange = (e) => {
+        let raw = e.target.value.replace(/[^\d+]/g, "");
+        if (raw.startsWith("+62")) raw = "0" + raw.slice(3);
+        const digits = raw.replace(/\D/g, "").slice(0, 13);
+        let formatted = digits;
+        if (digits.length > 4 && digits.length <= 8) formatted = `${digits.slice(0, 4)}-${digits.slice(4)}`;
+        else if (digits.length > 8) formatted = `${digits.slice(0, 4)}-${digits.slice(4, 8)}-${digits.slice(8)}`;
+        setPhoneNumber(formatted);
+    };
+
+    const SIP_REGEX = /^\d{3,6}\/\d{3,6}\/SIP\/\d{4}$/;
+
+    const handleSipChange = (e) => {
+        const raw = e.target.value.toUpperCase();
+        const parts = raw.split("/");
+        let result = parts[0].replace(/\D/g, "").slice(0, 6);
+        if (parts.length >= 2) result += "/" + parts[1].replace(/\D/g, "").slice(0, 6);
+        if (parts.length >= 3) result += "/SIP";
+        if (parts.length >= 4) result += "/" + parts[3].replace(/\D/g, "").slice(0, 4);
+        setLicenseNumber(result);
+    };
+
+    const handlePhotoSelect = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith("image/")) { setError("Foto harus berformat gambar (JPG, PNG, WebP)."); return; }
+        if (file.size > 5 * 1024 * 1024) { setError("Ukuran foto maksimal 5 MB."); return; }
+        setDoctorPhoto(file);
+        const reader = new FileReader();
+        reader.onload = (ev) => setDoctorPhotoPreview(ev.target.result);
+        reader.readAsDataURL(file);
+    };
+
     // ── Doctor Request ────────────────────────────────────────────────
 
     const handleDoctorRequest = async () => {
+        const rawKtp = ktpNumber.replace(/\s/g, "");
+        const rawPhone = phoneNumber.replace(/-/g, "");
         if (!doctorName.trim()) { setError("Nama lengkap tidak boleh kosong."); return; }
-        if (!licenseNumber.trim()) { setError("Nomor SIP tidak boleh kosong."); return; }
+        if (rawKtp.length !== 16) { setError("Nomor KTP harus 16 digit."); return; }
+        if (!SIP_REGEX.test(licenseNumber)) { setError("Format Nomor SIP tidak valid. Contoh: 503/1234/SIP/2024"); return; }
         if (!specialization) { setError("Pilih spesialisasi terlebih dahulu."); return; }
         if (!hospital.trim()) { setError("Nama rumah sakit / klinik tidak boleh kosong."); return; }
+        if (rawPhone.length < 9 || rawPhone.length > 13) { setError("Nomor telepon tidak valid (minimal 9 digit)."); return; }
+
         setLoading(true); setError(null);
         try {
+            let photoCid = "";
+            if (doctorPhoto) {
+                if (!isPinataConfigured()) { setError("Pinata belum dikonfigurasi, tidak bisa mengunggah foto. Atur VITE_PINATA_JWT di .env."); setLoading(false); return; }
+                photoCid = await uploadProfilePhoto(doctorPhoto);
+            }
             const keyPair = generateKeyPair();
-            await requestDoctorVerification(account.signer, doctorName.trim(), licenseNumber.trim(), specialization, hospital.trim(), keyPair.publicKey);
+            await requestDoctorVerification(
+                account.signer,
+                doctorName.trim(),
+                licenseNumber.trim(),
+                specialization,
+                hospital.trim(),
+                rawKtp,
+                rawPhone,
+                photoCid,
+                keyPair.publicKey
+            );
             savePrivateKey(keyPair.privateKey);
             setGeneratedPrivateKey(keyPair.privateKey);
             setDoctorRequestSent(true);
@@ -172,7 +242,7 @@ export default function RegisterForm() {
 
     const handleDoctorRequestContinue = () => {
         setIsPendingDoctor(true);
-        setPendingDoctorInfo({ name: doctorName.trim(), licenseNumber: licenseNumber.trim(), specialization, hospital: hospital.trim() });
+        setPendingDoctorInfo({ name: doctorName.trim(), licenseNumber: licenseNumber.trim(), specialization, hospital: hospital.trim(), ktpNumber: ktpNumber.replace(/\s/g, ""), phoneNumber: phoneNumber.replace(/-/g, "") });
     };
 
     // ── Login ─────────────────────────────────────────────────────────
@@ -340,19 +410,88 @@ export default function RegisterForm() {
                     {regType === "doctor" && (
                         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                             <div style={{ padding: "10px 13px", borderRadius: "9px", background: "#fffbeb", border: "1px solid #fde68a", fontSize: "0.75rem", color: "#92400e", lineHeight: 1.5 }}>
-                                <strong>Permohonan Verifikasi Dokter</strong> — Data Anda akan ditinjau oleh administrator rumah sakit. Setelah disetujui, akun dokter Anda akan aktif.
+                                <strong>Permohonan Verifikasi Dokter</strong> — Data Anda akan ditinjau oleh administrator. Setelah disetujui, akun dokter Anda akan aktif.
                             </div>
 
+                            {/* Foto Dokter */}
+                            <div>
+                                <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                    Foto Dokter <span style={{ color: "#94a3b8", fontWeight: 400, textTransform: "none" }}>(opsional)</span>
+                                </label>
+                                {!doctorPhotoPreview ? (
+                                    <label htmlFor="doctor-photo-upload" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", padding: "20px 16px", border: "2px dashed #e2e8f0", borderRadius: "12px", cursor: "pointer", transition: "border-color 0.2s" }}
+                                        onMouseEnter={e => e.currentTarget.style.borderColor = "#93bbf5"}
+                                        onMouseLeave={e => e.currentTarget.style.borderColor = "#e2e8f0"}>
+                                        <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+                                        </div>
+                                        <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "#475569" }}>Klik untuk unggah foto</span>
+                                        <span style={{ fontSize: "0.7rem", color: "#94a3b8" }}>JPG, PNG, WebP — maks. 5 MB</span>
+                                        <input id="doctor-photo-upload" type="file" accept="image/*" onChange={handlePhotoSelect} style={{ display: "none" }} />
+                                    </label>
+                                ) : (
+                                    <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px", borderRadius: "12px", background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                                        <img src={doctorPhotoPreview} alt="Foto" style={{ width: "60px", height: "60px", borderRadius: "50%", objectFit: "cover", border: "2px solid #e2e8f0", flexShrink: 0 }} />
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "#0f172a", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doctorPhoto?.name}</p>
+                                            <p style={{ fontSize: "0.7rem", color: "#94a3b8", margin: "2px 0 0" }}>{((doctorPhoto?.size || 0) / 1024).toFixed(0)} KB</p>
+                                        </div>
+                                        <button onClick={() => { setDoctorPhoto(null); setDoctorPhotoPreview(null); }}
+                                            style={{ padding: "5px 10px", borderRadius: "7px", border: "1px solid #fecaca", background: "#fff5f5", color: "#dc2626", fontSize: "0.72rem", cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>
+                                            Hapus
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Nama Lengkap */}
                             <div>
                                 <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Nama Lengkap (sesuai KTP)</label>
                                 <input type="text" value={doctorName} onChange={e => setDoctorName(e.target.value)} placeholder="dr. Nama Lengkap" className="input-field" autoFocus />
                             </div>
 
+                            {/* Nomor KTP */}
                             <div>
-                                <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Nomor SIP (Surat Izin Praktik)</label>
-                                <input type="text" value={licenseNumber} onChange={e => setLicenseNumber(e.target.value)} placeholder="Contoh: 503/1234/SIP/2024" className="input-field" />
+                                <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Nomor KTP (NIK)</label>
+                                <input type="text" inputMode="numeric" value={ktpNumber} onChange={handleKtpChange}
+                                    placeholder="3201 7404 XXXX XXXX"
+                                    className="input-field" style={{ fontFamily: "'JetBrains Mono','Fira Code',monospace", letterSpacing: "0.08em" }} />
+                                <p style={{ fontSize: "0.68rem", color: "#94a3b8", marginTop: "4px" }}>
+                                    {ktpNumber.replace(/\s/g, "").length}/16 digit &nbsp;·&nbsp; Format: XXXXXX XXXXXX XXXX
+                                </p>
                             </div>
 
+                            {/* Nomor SIP */}
+                            <div>
+                                <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Nomor SIP (Surat Izin Praktik)</label>
+                                <input type="text" value={licenseNumber}
+                                    onChange={handleSipChange}
+                                    placeholder="503/1234/SIP/2024"
+                                    className="input-field"
+                                    style={{ fontFamily: "'JetBrains Mono','Fira Code',monospace", letterSpacing: "0.04em", borderColor: licenseNumber && !SIP_REGEX.test(licenseNumber) ? "#fca5a5" : undefined }} />
+                                {!licenseNumber && (
+                                    <p style={{ fontSize: "0.68rem", color: "#94a3b8", marginTop: "4px" }}>Format: <span style={{ fontFamily: "monospace" }}>KODE/NOMOR/SIP/TAHUN</span></p>
+                                )}
+                                {licenseNumber && !SIP_REGEX.test(licenseNumber) && (
+                                    <p style={{ fontSize: "0.68rem", color: "#e11d48", marginTop: "4px" }}>Belum lengkap — contoh: <span style={{ fontFamily: "monospace" }}>503/1234/SIP/2024</span></p>
+                                )}
+                                {SIP_REGEX.test(licenseNumber) && (
+                                    <p style={{ fontSize: "0.68rem", color: "#16a34a", marginTop: "4px" }}>✓ Format valid</p>
+                                )}
+                            </div>
+
+                            {/* Nomor Telepon */}
+                            <div>
+                                <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Nomor Telepon</label>
+                                <input type="text" inputMode="tel" value={phoneNumber} onChange={handlePhoneChange}
+                                    placeholder="0812-3456-7890"
+                                    className="input-field" style={{ fontFamily: "'JetBrains Mono','Fira Code',monospace", letterSpacing: "0.04em" }} />
+                                <p style={{ fontSize: "0.68rem", color: "#94a3b8", marginTop: "4px" }}>
+                                    Format: 08XX-XXXX-XXXX &nbsp;·&nbsp; Bisa diisi +62 atau 08
+                                </p>
+                            </div>
+
+                            {/* Spesialisasi */}
                             <div>
                                 <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Spesialisasi</label>
                                 <select value={specialization} onChange={e => setSpecialization(e.target.value)} className="input-field" style={{ cursor: "pointer" }}>
@@ -361,12 +500,17 @@ export default function RegisterForm() {
                                 </select>
                             </div>
 
+                            {/* Nama RS */}
                             <div>
                                 <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: "#64748b", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Nama Rumah Sakit / Klinik</label>
                                 <input type="text" value={hospital} onChange={e => setHospital(e.target.value)} placeholder="RS / Klinik tempat Anda bertugas" className="input-field" />
                             </div>
 
-                            <button onClick={handleDoctorRequest} disabled={loading || !doctorName.trim() || !licenseNumber.trim() || !specialization || !hospital.trim()} className="btn btn-accent" style={{ width: "100%", justifyContent: "center", padding: "12px", fontSize: "0.9rem" }}>
+                            <button
+                                onClick={handleDoctorRequest}
+                                disabled={loading || !doctorName.trim() || ktpNumber.replace(/\s/g,"").length !== 16 || !SIP_REGEX.test(licenseNumber) || !specialization || !hospital.trim() || phoneNumber.replace(/-/g,"").length < 9}
+                                className="btn btn-accent"
+                                style={{ width: "100%", justifyContent: "center", padding: "12px", fontSize: "0.9rem" }}>
                                 {loading ? <><Spinner/> Mengirim Permohonan...</> : "Kirim Permohonan Verifikasi"}
                             </button>
                         </div>

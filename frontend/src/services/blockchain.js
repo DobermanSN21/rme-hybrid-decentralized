@@ -80,6 +80,9 @@ export async function getPendingDoctorRequests(signer) {
         licenseNumber: r.licenseNumber,
         specialization: r.specialization,
         hospital: r.hospital,
+        ktpNumber: r.ktpNumber,
+        phoneNumber: r.phoneNumber,
+        photoCid: r.photoCid,
         requestedAt: Number(r.requestedAt),
     }));
 }
@@ -93,6 +96,9 @@ export async function getApprovedDoctors(signer) {
         licenseNumber: r.licenseNumber,
         specialization: r.specialization,
         hospital: r.hospital,
+        ktpNumber: r.ktpNumber,
+        phoneNumber: r.phoneNumber,
+        photoCid: r.photoCid,
         requestedAt: Number(r.requestedAt),
     }));
 }
@@ -120,9 +126,9 @@ export async function registerAsPatient(signer, name, publicKey) {
     return tx;
 }
 
-export async function requestDoctorVerification(signer, name, licenseNumber, specialization, hospital, publicKey) {
+export async function requestDoctorVerification(signer, name, licenseNumber, specialization, hospital, ktpNumber, phoneNumber, photoCid, publicKey) {
     const contract = getContract(signer);
-    const tx = await contract.requestDoctorVerification(name, licenseNumber, specialization, hospital, publicKey);
+    const tx = await contract.requestDoctorVerification(name, licenseNumber, specialization, hospital, ktpNumber, phoneNumber, photoCid, publicKey);
     await tx.wait();
     return tx;
 }
@@ -152,6 +158,9 @@ export async function getDoctorRequest(signer, address) {
         licenseNumber: r[5],
         specialization: r[6],
         hospital: r[7],
+        ktpNumber: r[8],
+        phoneNumber: r[9],
+        photoCid: r[10],
     };
 }
 
