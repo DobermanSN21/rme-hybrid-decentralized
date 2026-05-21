@@ -287,7 +287,7 @@ export default function DoctorDashboard() {
 
             {/* ── Tab: Unggah ── */}
             {activeTab === "upload" && (
-                <div className="max-w-2xl mx-auto">
+                <div style={{ maxWidth:"672px", margin:"0 auto" }}>
                     <h2 className="section-title">Unggah Rekam Medis Pasien</h2>
                     <div className="glass-card" style={{ padding:"28px" }}>
 
