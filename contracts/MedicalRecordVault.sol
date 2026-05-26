@@ -78,6 +78,10 @@ contract MedicalRecordVault {
     mapping(address => string[]) private patientCids;
     mapping(address => mapping(address => string[])) private doctorAccessibleCids;
 
+    // Per-doctor patient list (only patients this doctor has submitted records to)
+    mapping(address => address[]) private doctorPatients;
+    mapping(address => mapping(address => bool)) private doctorPatientTracked;
+
     address[] private allPatients;
 
     // ================================================================
@@ -288,6 +292,11 @@ contract MedicalRecordVault {
         }));
 
         encryptedKeys[_cid][_patient] = _encryptedKeyForPatient;
+
+        if (!doctorPatientTracked[msg.sender][_patient]) {
+            doctorPatientTracked[msg.sender][_patient] = true;
+            doctorPatients[msg.sender].push(_patient);
+        }
 
         emit RecordSubmitted(_patient, msg.sender, _cid, recordIndex, block.timestamp);
     }
@@ -500,13 +509,14 @@ contract MedicalRecordVault {
     }
 
     /**
-     * @notice Daftar semua pasien terdaftar beserta nama mereka (dokter only)
+     * @notice Daftar pasien yang pernah dikirimkan rekam medis oleh dokter ini
      */
     function getPatientList() external view onlyDoctor returns (address[] memory addrs, string[] memory names) {
-        addrs = allPatients;
-        names = new string[](allPatients.length);
-        for (uint256 i = 0; i < allPatients.length; i++) {
-            names[i] = displayNames[allPatients[i]];
+        address[] storage list = doctorPatients[msg.sender];
+        addrs = list;
+        names = new string[](list.length);
+        for (uint256 i = 0; i < list.length; i++) {
+            names[i] = displayNames[list[i]];
         }
     }
 
