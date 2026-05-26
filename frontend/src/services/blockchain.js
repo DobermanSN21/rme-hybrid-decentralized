@@ -186,9 +186,9 @@ export function clearNameCache() {
 
 // ── Record Submission (Doctor) ────────────────────────────────────────
 
-export async function submitRecord(signer, patientAddress, cid, encryptedKeyForPatient, fileType, fileName) {
+export async function submitRecord(signer, patientAddress, cid, encryptedKeyForPatient, fileType, fileName, notes) {
     const contract = getContract(signer);
-    const tx = await contract.submitRecord(patientAddress, cid, encryptedKeyForPatient, fileType, fileName);
+    const tx = await contract.submitRecord(patientAddress, cid, encryptedKeyForPatient, fileType, fileName, notes || "");
     await tx.wait();
     return tx;
 }
@@ -218,6 +218,7 @@ export async function getPendingRecords(signer) {
         doctorAddress: r.doctorAddress,
         fileType: r.fileType,
         fileName: r.fileName,
+        notes: r.notes || "",
         status: Number(r.status),
         timestamp: Number(r.timestamp),
         recordIndex: Number(indices[i]),
@@ -240,6 +241,7 @@ export async function getMyRecords(signer) {
         doctorAddress: r.doctorAddress,
         fileType: r.fileType,
         fileName: r.fileName,
+        notes: r.notes || "",
         status: Number(r.status),
         timestamp: Number(r.timestamp),
     }));
@@ -254,6 +256,7 @@ export async function getPatientRecords(signer, patientAddress) {
         doctorAddress: r.doctorAddress,
         fileType: r.fileType,
         fileName: r.fileName,
+        notes: r.notes || "",
         status: Number(r.status),
         timestamp: Number(r.timestamp),
     }));

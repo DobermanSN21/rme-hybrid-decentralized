@@ -199,6 +199,14 @@ export default function RecordCard({ record, onDecrypt, decryptedData, keyAvaila
                 </div>
             </div>
 
+            {/* Doctor notes */}
+            {record.notes && (
+                <div style={{ padding:"10px 12px",borderRadius:"8px",background:"#fffbeb",border:"1px solid #fde68a",marginBottom:"12px",fontSize:"0.78rem",color:"#78350f",lineHeight:"1.6" }}>
+                    <div style={{ fontSize:"0.65rem",fontWeight:700,color:"#b45309",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:"4px" }}>Catatan Dokter</div>
+                    <span style={{ whiteSpace:"pre-wrap" }}>{record.notes}</span>
+                </div>
+            )}
+
             {/* Action buttons — full width row, always below meta */}
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                 {!decryptedData && onDecrypt && keyAvailable === false ? (

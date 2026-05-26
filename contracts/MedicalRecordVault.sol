@@ -23,6 +23,7 @@ contract MedicalRecordVault {
         address doctorAddress;
         string fileType;
         string fileName;
+        string notes;
         RecordStatus status;
         uint256 timestamp;
     }
@@ -264,7 +265,8 @@ contract MedicalRecordVault {
         string calldata _cid,
         string calldata _encryptedKeyForPatient,
         string calldata _fileType,
-        string calldata _fileName
+        string calldata _fileName,
+        string calldata _notes
     ) external onlyDoctor {
         require(roles[_patient] == Role.PATIENT, "Target is not a registered patient");
         require(bytes(_cid).length > 0, "CID cannot be empty");
@@ -280,6 +282,7 @@ contract MedicalRecordVault {
             doctorAddress: msg.sender,
             fileType: _fileType,
             fileName: _fileName,
+            notes: _notes,
             status: RecordStatus.PENDING,
             timestamp: block.timestamp
         }));

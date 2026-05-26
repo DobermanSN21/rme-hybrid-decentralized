@@ -79,6 +79,9 @@ export default function DoctorDashboard() {
     const [notification, setNotification] = useState(null);
     const prevApprovedRef = useRef(new Set());
 
+    // Notes / catatan dokter
+    const [notes, setNotes] = useState("");
+
     // Private key import
     const [keyInput, setKeyInput] = useState("");
 
@@ -154,11 +157,11 @@ export default function DoctorDashboard() {
             const serializedKey = serializeEncrypted(encAesKey);
 
             setUploadStep("blockchain");
-            await submitRecord(account.signer, patientAddress, cid, serializedKey, selectedFile.type, selectedFile.name);
+            await submitRecord(account.signer, patientAddress, cid, serializedKey, selectedFile.type, selectedFile.name, notes);
 
             setUploadStep("done");
             setUploadSuccess({ cid, fileName:selectedFile.name, fileType:selectedFile.type, sha256:originalHash });
-            setSelectedFile(null); setFilePreview(null);
+            setSelectedFile(null); setFilePreview(null); setNotes("");
         } catch (err) {
             const msg = err.reason || err.message || String(err);
             if (msg.includes("getPublicKey")) {
@@ -349,6 +352,23 @@ export default function DoctorDashboard() {
                                     </div>
                                 </div>
                             )}
+                        </div>
+
+                        {/* Catatan / Notes */}
+                        <div style={{ marginBottom:"20px" }}>
+                            <label style={{ display:"block",fontSize:"0.72rem",fontWeight:600,color:"#64748b",marginBottom:"8px",textTransform:"uppercase",letterSpacing:"0.06em" }}>
+                                Catatan <span style={{ fontWeight:400,textTransform:"none",letterSpacing:0 }}>(opsional)</span>
+                            </label>
+                            <textarea
+                                value={notes}
+                                onChange={e => setNotes(e.target.value)}
+                                placeholder="Tambahkan deskripsi, diagnosis singkat, atau catatan untuk pasien..."
+                                maxLength={500}
+                                rows={3}
+                                className="input-field"
+                                style={{ resize:"vertical",minHeight:"80px",fontFamily:"inherit",fontSize:"0.85rem",lineHeight:"1.6" }}
+                            />
+                            <div style={{ textAlign:"right",fontSize:"0.68rem",color:"#94a3b8",marginTop:"4px" }}>{notes.length}/500</div>
                         </div>
 
                         {/* Info Enkripsi */}
