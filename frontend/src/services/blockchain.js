@@ -272,27 +272,21 @@ export async function getMyCids(signer) {
     return contract.getMyCids();
 }
 
-// ── Doctor: Submissions via Events ───────────────────────────────────
+// ── Doctor: Submitted Records (with full data including notes) ────────
 
 export async function getSubmittedByDoctor(signer) {
     const contract = getContract(signer);
-    const address = await signer.getAddress();
-
-    const [submitEvents, approvedEvents, rejectedEvents] = await Promise.all([
-        contract.queryFilter(contract.filters.RecordSubmitted(null, address)),
-        contract.queryFilter(contract.filters.RecordApproved()),
-        contract.queryFilter(contract.filters.RecordRejected()),
-    ]);
-
-    const approvedCids = new Set(approvedEvents.map(e => e.args.cid));
-    const rejectedCids = new Set(rejectedEvents.map(e => e.args.cid));
-
-    return submitEvents.map(e => ({
-        patientAddress: e.args.patient,
-        doctorAddress: e.args.doctor,
-        cid: e.args.cid,
-        timestamp: Number(e.args.timestamp),
-        status: approvedCids.has(e.args.cid) ? 'APPROVED' : rejectedCids.has(e.args.cid) ? 'REJECTED' : 'PENDING',
+    const records = await contract.getDoctorSubmittedRecords();
+    const STATUS = ["PENDING", "APPROVED", "REJECTED"];
+    return records.map(r => ({
+        cid: r.cid,
+        patientAddress: r.patientAddress,
+        doctorAddress: r.doctorAddress,
+        fileType: r.fileType,
+        fileName: r.fileName,
+        notes: r.notes || "",
+        status: STATUS[Number(r.status)] || "PENDING",
+        timestamp: Number(r.timestamp),
     }));
 }
 

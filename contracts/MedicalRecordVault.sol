@@ -521,6 +521,29 @@ contract MedicalRecordVault {
     }
 
     /**
+     * @notice Semua rekam medis yang pernah disubmit oleh dokter ini (semua status)
+     */
+    function getDoctorSubmittedRecords() external view onlyDoctor returns (Record[] memory) {
+        address[] storage patients = doctorPatients[msg.sender];
+        uint256 total = 0;
+        for (uint256 i = 0; i < patients.length; i++) {
+            Record[] storage recs = patientRecords[patients[i]];
+            for (uint256 j = 0; j < recs.length; j++) {
+                if (recs[j].doctorAddress == msg.sender) total++;
+            }
+        }
+        Record[] memory result = new Record[](total);
+        uint256 idx = 0;
+        for (uint256 i = 0; i < patients.length; i++) {
+            Record[] storage recs = patientRecords[patients[i]];
+            for (uint256 j = 0; j < recs.length; j++) {
+                if (recs[j].doctorAddress == msg.sender) result[idx++] = recs[j];
+            }
+        }
+        return result;
+    }
+
+    /**
      * @notice Mengambil nama tampilan dari alamat manapun
      */
     function getDisplayName(address _account) external view returns (string memory) {

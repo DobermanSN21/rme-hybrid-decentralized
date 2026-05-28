@@ -484,6 +484,12 @@ export default function DoctorDashboard() {
                                                     <span style={{ fontSize:"0.68rem",fontWeight:600,color:"#94a3b8",textTransform:"uppercase",letterSpacing:"0.05em" }}>CID</span>
                                                     <p style={{ fontFamily:"monospace",fontSize:"0.72rem",color:"#2E7DDB",marginTop:"2px",wordBreak:"break-all",lineHeight:1.4 }}>{rec.cid}</p>
                                                 </div>
+                                                {rec.notes && (
+                                                    <div style={{ marginTop:"10px",padding:"10px 12px",borderRadius:"8px",background:"#fffbeb",border:"1px solid #fde68a" }}>
+                                                        <div style={{ fontSize:"0.65rem",fontWeight:700,color:"#b45309",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:"4px" }}>Catatan</div>
+                                                        <span style={{ fontSize:"0.78rem",color:"#78350f",lineHeight:"1.6",whiteSpace:"pre-wrap" }}>{rec.notes}</span>
+                                                    </div>
+                                                )}
                                             </div>
                                             {rec.status==="APPROVED" && (
                                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
