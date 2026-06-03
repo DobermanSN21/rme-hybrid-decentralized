@@ -1,8 +1,7 @@
 // services/crypto.js
 // ============================================================
-// Implementasi Manual: SHA-256, AES-256-CBC, ECC secp256k1, ECDH, HKDF
-// ============================================================
-// Semua algoritma kriptografi diimplementasikan dari nol (tanpa library eksternal).
+// Implementasi Manual: SHA-256, AES-256-CBC, ECC secp256k1, ECDH
+// HMAC-SHA256 dan HKDF menggunakan Web Crypto API (RFC 2104 / RFC 5869)
 // Referensi: FIPS 180-4 (SHA-256), FIPS 197 (AES), SEC 2 v2.0 (secp256k1)
 // ============================================================
 
@@ -101,33 +100,31 @@ export function sha256Hex(input) {
 }
 
 // ============================================================
-// 2. HMAC-SHA256 (digunakan oleh AES auth tag dan HKDF)
+// 2. HMAC-SHA256 — Web Crypto API (RFC 2104)
 // ============================================================
 
-function hmacSha256(key, data) {
-    let k = key.length > 64 ? sha256(key) : key;
-    const kPad = new Uint8Array(64);
-    kPad.set(k.slice(0, 64));
-    const iKey = new Uint8Array(64);
-    const oKey = new Uint8Array(64);
-    for (let i = 0; i < 64; i++) { iKey[i] = kPad[i] ^ 0x36; oKey[i] = kPad[i] ^ 0x5c; }
-    const inner = new Uint8Array(64 + data.length);
-    inner.set(iKey); inner.set(data, 64);
-    const innerHash = sha256(inner);
-    const outer = new Uint8Array(96);
-    outer.set(oKey); outer.set(innerHash, 64);
-    return sha256(outer);
+async function hmacSha256(keyBytes, data) {
+    const key = await crypto.subtle.importKey(
+        'raw', keyBytes,
+        { name: 'HMAC', hash: 'SHA-256' },
+        false, ['sign']
+    );
+    const sig = await crypto.subtle.sign('HMAC', key, data);
+    return new Uint8Array(sig);
 }
 
 // ============================================================
-// 3. HKDF-SHA256 (key derivation dari ECDH shared secret)
+// 3. HKDF-SHA256 — Web Crypto API (RFC 5869)
 // ============================================================
 
-function hkdf(ikm, salt, info, length) {
-    const prk = hmacSha256(salt, ikm);
-    const t1Input = new Uint8Array(info.length + 1);
-    t1Input.set(info); t1Input[info.length] = 0x01;
-    return hmacSha256(prk, t1Input).slice(0, length);
+async function hkdf(ikm, salt, info, length) {
+    const key = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits(
+        { name: 'HKDF', hash: 'SHA-256', salt, info },
+        key,
+        length * 8
+    );
+    return new Uint8Array(bits);
 }
 
 // ============================================================
@@ -368,7 +365,7 @@ export async function encryptData(plaintext, aesKeyHex) {
     }
     const macIn=new Uint8Array(16+ct.length);
     macIn.set(iv); macIn.set(ct,16);
-    const tag=hmacSha256(hexToBytes(aesKeyHex), macIn);
+    const tag = await hmacSha256(hexToBytes(aesKeyHex), macIn);
     return { iv:bytesToHex(iv), ciphertext:bytesToHex(ct), tag:bytesToHex(tag) };
 }
 
@@ -378,7 +375,7 @@ export async function decryptData(encryptedObj, aesKeyHex) {
     const tag=hexToBytes(encryptedObj.tag);
     const macIn=new Uint8Array(16+ct.length);
     macIn.set(iv); macIn.set(ct,16);
-    const expected=hmacSha256(hexToBytes(aesKeyHex), macIn);
+    const expected = await hmacSha256(hexToBytes(aesKeyHex), macIn);
     let diff=0; for(let i=0;i<32;i++) diff|=tag[i]^expected[i];
     if(diff!==0) throw new Error('Autentikasi gagal: HMAC tag tidak cocok');
     const rks=aesKeySchedule(aesKeyHex);
@@ -409,7 +406,7 @@ export async function encryptFile(fileBuffer, aesKeyHex) {
     }
     const macIn=new Uint8Array(16+ct.length);
     macIn.set(iv); macIn.set(ct,16);
-    const tag=hmacSha256(hexToBytes(aesKeyHex),macIn);
+    const tag = await hmacSha256(hexToBytes(aesKeyHex),macIn);
     const result=new Uint8Array(16+ct.length+32);
     result.set(iv,0); result.set(ct,16); result.set(tag,16+ct.length);
     return new Blob([result],{type:'application/octet-stream'});
@@ -423,7 +420,7 @@ export async function decryptFile(encryptedBuffer, aesKeyHex) {
     const tag=data.slice(data.length-32);
     const macIn=new Uint8Array(16+ct.length);
     macIn.set(iv); macIn.set(ct,16);
-    const expected=hmacSha256(hexToBytes(aesKeyHex),macIn);
+    const expected = await hmacSha256(hexToBytes(aesKeyHex),macIn);
     let diff=0; for(let i=0;i<32;i++) diff|=tag[i]^expected[i];
     if(diff!==0) throw new Error('Autentikasi file gagal: tag tidak cocok');
     const rks=aesKeySchedule(aesKeyHex);
@@ -454,21 +451,21 @@ function eccComputeShared(privHex, pubHex) {
     return bigIntToBytes32(shared.x);
 }
 
-function eccDeriveKey(sharedSecret) {
+async function eccDeriveKey(sharedSecret) {
     return hkdf(sharedSecret, HKDF_SALT, HKDF_INFO, 32);
 }
 
 export async function encryptWithPublicKey(recipientPublicKeyHex, plaintext) {
     const { privateKey: ephPriv, publicKey: ephPub } = generateKeyPair();
     const shared = eccComputeShared(ephPriv, recipientPublicKeyHex);
-    const encKeyHex = bytesToHex(eccDeriveKey(shared));
+    const encKeyHex = bytesToHex(await eccDeriveKey(shared));
     const encrypted = await encryptData(plaintext, encKeyHex);
     return { ephemeralPublicKey: ephPub, ...encrypted };
 }
 
 export async function decryptWithPrivateKey(recipientPrivateKeyHex, encryptedData) {
     const shared = eccComputeShared(recipientPrivateKeyHex, encryptedData.ephemeralPublicKey);
-    const encKeyHex = bytesToHex(eccDeriveKey(shared));
+    const encKeyHex = bytesToHex(await eccDeriveKey(shared));
     return decryptData({ iv:encryptedData.iv, ciphertext:encryptedData.ciphertext, tag:encryptedData.tag }, encKeyHex);
 }
 
