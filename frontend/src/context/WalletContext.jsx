@@ -35,7 +35,11 @@ export function WalletProvider({ children }) {
             if (r !== ROLES.NONE) {
                 const name = await getDisplayName(acc.signer, acc.address);
                 setDisplayName(name);
-            } else if (!adminFlag) {
+            } else {
+                setDisplayName("");
+            }
+
+            if (r === ROLES.NONE && !adminFlag) {
                 // Check if pending/rejected doctor request
                 try {
                     const req = await getDoctorRequest(acc.signer, acc.address);

@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import { useWallet, ROLE_LABELS, ROLES } from "../context/WalletContext";
+import WalletQRModal from "./WalletQRCode";
 
 // SVG Icons
 const IconLogout = ({ size = 14, color = "currentColor" }) => (
@@ -88,6 +89,7 @@ export default function Layout({ children }) {
                                 {displayName}
                             </span>
                         )}
+                        <WalletQRModal address={account?.address}/>
                         <button
                             onClick={handleCopy}
                             title={copied ? "Copied!" : `Copy address: ${account?.address}`}

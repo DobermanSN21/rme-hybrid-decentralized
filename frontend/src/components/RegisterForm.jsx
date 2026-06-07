@@ -5,6 +5,7 @@ import { useWallet, ROLES } from "../context/WalletContext";
 import { registerAsPatient, requestDoctorVerification, getRole, getPublicKey as getBlockchainPublicKey } from "../services/blockchain";
 import { generateKeyPair, privateKeyToPublicKey } from "../services/crypto";
 import { uploadProfilePhoto, isPinataConfigured } from "../services/pinata";
+import { WalletQRInline } from "./WalletQRCode";
 
 const SPECIALIZATIONS = [
     "Dokter Umum",
@@ -37,7 +38,7 @@ const Spinner = () => (
 
 // ── Private Key Backup Screen ─────────────────────────────────────────
 
-function KeyBackupScreen({ privateKey, onContinue, continueLabel = "Go to Dashboard" }) {
+function KeyBackupScreen({ privateKey, address, onContinue, continueLabel = "Go to Dashboard" }) {
     const [copied, setCopied] = useState(false);
     const [downloaded, setDownloaded] = useState(false);
 
@@ -85,6 +86,12 @@ function KeyBackupScreen({ privateKey, onContinue, continueLabel = "Go to Dashbo
                 </div>
             </div>
 
+            {address && (
+                <div style={{ marginBottom: "20px" }}>
+                    <WalletQRInline address={address}/>
+                </div>
+            )}
+
             <p style={{ fontSize: "0.78rem", color: "#94a3b8", textAlign: "center", marginBottom: "14px" }}>
                 Pastikan Anda sudah menyimpan private key sebelum melanjutkan.
             </p>
@@ -104,7 +111,7 @@ function KeyBackupScreen({ privateKey, onContinue, continueLabel = "Go to Dashbo
 // ── Main RegisterForm ─────────────────────────────────────────────────
 
 export default function RegisterForm() {
-    const { account, savePrivateKey, setRole, setIsPendingDoctor, setPendingDoctorInfo, setError } = useWallet();
+    const { account, savePrivateKey, setRole, setIsPendingDoctor, setPendingDoctorInfo, setError, refreshStatus } = useWallet();
 
     const [mode, setMode] = useState("register"); // "register" | "login"
     const [regType, setRegType] = useState("patient"); // "patient" | "doctor"
@@ -150,8 +157,12 @@ export default function RegisterForm() {
         }
     };
 
-    const handlePatientGoToDashboard = () => {
-        setRole(ROLES.PATIENT);
+    const handlePatientGoToDashboard = async () => {
+        try {
+            await refreshStatus();
+        } catch {
+            setRole(ROLES.PATIENT);
+        }
     };
 
     // ── Formatting helpers ────────────────────────────────────────────
@@ -272,7 +283,11 @@ export default function RegisterForm() {
                 return;
             }
             savePrivateKey(key);
-            setRole(role);
+            try {
+                await refreshStatus();
+            } catch {
+                setRole(role);
+            }
         } catch (err) {
             const msg = err.message || String(err);
             if (msg.includes("getPublicKey") || msg.includes("BAD_DATA") || msg.includes("No public key")) {
@@ -300,7 +315,7 @@ export default function RegisterForm() {
                     <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}>Registrasi Berhasil!</h2>
                     <p style={{ fontSize: "0.85rem", color: "#64748b" }}>Selamat datang, <strong>{patientName}</strong></p>
                 </div>
-                <KeyBackupScreen privateKey={generatedPrivateKey} onContinue={handlePatientGoToDashboard} continueLabel="Masuk ke Dashboard" />
+                <KeyBackupScreen privateKey={generatedPrivateKey} address={account?.address} onContinue={handlePatientGoToDashboard} continueLabel="Masuk ke Dashboard" />
             </div>
         );
     }
@@ -318,7 +333,7 @@ export default function RegisterForm() {
                     <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}>Permohonan Terkirim!</h2>
                     <p style={{ fontSize: "0.85rem", color: "#64748b" }}>Simpan private key Anda, lalu tunggu verifikasi admin.</p>
                 </div>
-                <KeyBackupScreen privateKey={generatedPrivateKey} onContinue={handleDoctorRequestContinue} continueLabel="Lihat Status Permohonan" />
+                <KeyBackupScreen privateKey={generatedPrivateKey} address={account?.address} onContinue={handleDoctorRequestContinue} continueLabel="Lihat Status Permohonan" />
             </div>
         );
     }
