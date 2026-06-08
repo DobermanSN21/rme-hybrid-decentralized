@@ -7,6 +7,7 @@ import { useDisplayName } from "../hooks/useDisplayName";
 import Layout from "../components/Layout";
 import RecordCard from "../components/RecordCard";
 import PatientSearchDropdown from "../components/PatientSearchDropdown";
+import QRScanModal from "../components/QRScanModal";
 import {
     submitRecord, getPatientRecords,
     getPublicKey as getBlockchainPublicKey,
@@ -84,6 +85,9 @@ export default function DoctorDashboard() {
 
     // Private key import
     const [keyInput, setKeyInput] = useState("");
+
+    // QR scanner modal
+    const [qrModal, setQrModal] = useState(null); // "upload" | "view" | null
 
     // Load patient list on mount
     useEffect(() => {
@@ -248,6 +252,16 @@ export default function DoctorDashboard() {
 
     return (
         <Layout>
+            <QRScanModal
+                isOpen={!!qrModal}
+                onClose={() => setQrModal(null)}
+                onScan={(addr) => {
+                    if (qrModal === "upload") setPatientAddress(addr);
+                    if (qrModal === "view") { setSearchAddress(addr); setRecords([]); setDecryptedMap({}); setKeyStatusMap({}); }
+                    setQrModal(null);
+                }}
+            />
+
             {/* Notification Toast */}
             {notification && (
                 <div style={{ position:"fixed",top:"24px",right:"24px",zIndex:9999,display:"flex",alignItems:"center",gap:"10px",padding:"14px 20px",borderRadius:"12px",background:"#16a34a",color:"white",boxShadow:"0 8px 24px rgba(22,163,74,0.35)",fontSize:"0.85rem",fontWeight:600,maxWidth:"340px" }} className="animate-fade-in">
@@ -296,7 +310,14 @@ export default function DoctorDashboard() {
 
                         {/* Pilih Pasien */}
                         <div style={{ marginBottom:"20px" }}>
-                            <label style={{ display:"block",fontSize:"0.72rem",fontWeight:600,color:"#64748b",marginBottom:"8px",textTransform:"uppercase",letterSpacing:"0.06em" }}>Pasien</label>
+                            <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"8px" }}>
+                                <label style={{ display:"block",fontSize:"0.72rem",fontWeight:600,color:"#64748b",textTransform:"uppercase",letterSpacing:"0.06em" }}>Pasien</label>
+                                <button onClick={() => setQrModal("upload")}
+                                    style={{ display:"inline-flex",alignItems:"center",gap:"5px",padding:"4px 10px",borderRadius:"7px",border:"1px solid #bfdbfe",background:"#eff6ff",color:"#2563eb",fontSize:"0.7rem",fontWeight:600,cursor:"pointer",fontFamily:"inherit" }}>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="6" height="6" x="3" y="3" rx="1"/><rect width="6" height="6" x="15" y="3" rx="1"/><rect width="6" height="6" x="3" y="15" rx="1"/><path d="M15 15h.01M18 18h.01"/></svg>
+                                    Scan QR Pasien
+                                </button>
+                            </div>
                             <PatientSearchDropdown
                                 patientList={patientList}
                                 listLoading={patientListLoading}
@@ -515,7 +536,14 @@ export default function DoctorDashboard() {
                     <h2 className="section-title" style={{ marginBottom:"20px" }}>Lihat Rekam Medis Pasien</h2>
 
                     <div className="glass-card" style={{ marginBottom:"24px",padding:"24px" }}>
-                        <h3 style={{ fontSize:"0.88rem",fontWeight:700,color:"#0f172a",marginBottom:"4px" }}>Cari Pasien</h3>
+                        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"4px" }}>
+                            <h3 style={{ fontSize:"0.88rem",fontWeight:700,color:"#0f172a",margin:0 }}>Cari Pasien</h3>
+                            <button onClick={() => setQrModal("view")}
+                                style={{ display:"inline-flex",alignItems:"center",gap:"5px",padding:"4px 10px",borderRadius:"7px",border:"1px solid #bfdbfe",background:"#eff6ff",color:"#2563eb",fontSize:"0.7rem",fontWeight:600,cursor:"pointer",fontFamily:"inherit" }}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="6" height="6" x="3" y="3" rx="1"/><rect width="6" height="6" x="15" y="3" rx="1"/><rect width="6" height="6" x="3" y="15" rx="1"/><path d="M15 15h.01M18 18h.01"/></svg>
+                                Scan QR Pasien
+                            </button>
+                        </div>
                         <p style={{ fontSize:"0.72rem",color:"#94a3b8",marginBottom:"14px" }}>Cari berdasarkan nama atau pilih dari daftar pasien terdaftar</p>
                         <div className="search-row">
                             <div className="search-row-input">
