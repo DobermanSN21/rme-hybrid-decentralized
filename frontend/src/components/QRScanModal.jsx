@@ -63,7 +63,7 @@ function isEthAddress(str) {
 }
 
 // ── Komponen utama ───────────────────────────────────────────────────
-export default function QRScanModal({ isOpen, onClose, onScan }) {
+export default function QRScanModal({ isOpen, onClose, onScan, title = "Scan QR Pasien", subtitle = "Baca wallet address dari QR code" }) {
     const [mode, setMode] = useState("upload"); // "camera" | "upload"
     const [error, setError] = useState("");
     const [scanning, setScanning] = useState(false);
@@ -219,8 +219,8 @@ export default function QRScanModal({ isOpen, onClose, onScan }) {
                             <IconQR size={18} color="#2E7DDB"/>
                         </div>
                         <div>
-                            <h3 style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0f172a", margin: 0 }}>Scan QR Pasien</h3>
-                            <p style={{ fontSize: "0.7rem", color: "#94a3b8", margin: 0 }}>Baca wallet address dari QR code</p>
+                            <h3 style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0f172a", margin: 0 }}>{title}</h3>
+                            <p style={{ fontSize: "0.7rem", color: "#94a3b8", margin: 0 }}>{subtitle}</p>
                         </div>
                     </div>
                     <button onClick={onClose} style={{ width: "30px", height: "30px", borderRadius: "8px", background: "#f1f5f9", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>

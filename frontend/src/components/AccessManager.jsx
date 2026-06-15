@@ -5,6 +5,7 @@ import { useDisplayNames } from "../hooks/useDisplayName";
 import { isAddress } from "ethers";
 import { useWallet } from "../context/WalletContext";
 import ConfirmDialog from "./ConfirmDialog";
+import QRScanModal from "./QRScanModal";
 import {
     grantAccess, revokeAccess, revokeAccessForCid,
     getAuthorizedDoctors, getAccessibleCidsForDoctor,
@@ -55,6 +56,7 @@ export default function AccessManager() {
     const [loading, setLoading] = useState(false);
     const [grantLoading, setGrantLoading] = useState(false);
     const [confirmDialog, setConfirmDialog] = useState(null);
+    const [showQRScan, setShowQRScan] = useState(false);
 
     const doctorDropRef = useRef(null);
     const cidDropdownRef = useRef(null);
@@ -198,6 +200,18 @@ export default function AccessManager() {
                 variant={confirmDialog?.variant} onConfirm={confirmDialog?.onConfirm||(()=>{})} onCancel={()=>setConfirmDialog(null)}
             />
 
+            <QRScanModal
+                isOpen={showQRScan}
+                onClose={() => setShowQRScan(false)}
+                onScan={(addr) => {
+                    setManualInput(false);
+                    setDoctorAddress(addr);
+                    setShowQRScan(false);
+                }}
+                title="Scan QR Dokter"
+                subtitle="Baca wallet address dokter dari QR code"
+            />
+
             {/* ── GRANT ACCESS ────────────────────────────────── */}
             <div className="glass-card" style={{ padding:"24px" }}>
                 <div style={{ display:"flex",alignItems:"center",gap:"10px",marginBottom:"20px" }}>
@@ -214,7 +228,16 @@ export default function AccessManager() {
 
                     {/* Doctor picker */}
                     <div ref={doctorDropRef} style={{ position:"relative" }}>
-                        <Label>Doctor</Label>
+                        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"7px" }}>
+                            <Label>Doctor</Label>
+                            <button type="button" onClick={() => setShowQRScan(true)}
+                                style={{ display:"flex",alignItems:"center",gap:"5px",fontSize:"0.72rem",fontWeight:700,color:"#2E7DDB",background:"#eef5ff",border:"1.5px solid #bfdbfe",borderRadius:"8px",padding:"4px 10px",cursor:"pointer",fontFamily:"inherit",transition:"background 0.15s" }}
+                                onMouseEnter={e=>e.currentTarget.style.background="#dbeafe"}
+                                onMouseLeave={e=>e.currentTarget.style.background="#eef5ff"}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="6" height="6" x="3" y="3" rx="1"/><rect width="6" height="6" x="15" y="3" rx="1"/><rect width="6" height="6" x="3" y="15" rx="1"/><path d="M15 15h.01M15 18h.01M18 15h.01M18 18h.01M21 15h.01M21 18h.01M21 21h.01M18 21h.01M15 21h.01"/></svg>
+                                Scan QR Dokter
+                            </button>
+                        </div>
                         {!manualInput ? (
                             <>
                                 <button type="button" onClick={() => setDoctorDropOpen(o => !o)}
